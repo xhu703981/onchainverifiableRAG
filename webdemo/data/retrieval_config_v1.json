@@ -1,0 +1,88 @@
+{
+ "version": "hybrid-v1",
+ "corpus": {
+  "path": "corpus_v1.jsonl",
+  "sha256": "0x3cba220d15bd7e7e00d419a2afe9847683e104158e1bdc5dc99a7b2cd117c79f",
+  "leaves": 1998,
+  "merkle_root": "0x949fe997d49adee6daa0165f3c30faaf109086919121b0cef125b1b94ed81593",
+  "format": "jsonl; one canonical JSON {hash,text} per line; sorted by hash (= leaf order)",
+  "merkle": "sha256; leaf = sha256(0x00||passageHash); node = sha256(0x01||left||right); odd node promoted"
+ },
+ "retriever_code": {
+  "path": "../retrieval_v1.py",
+  "sha256": "0xf7404ef37f007a76303bb38823cc5145eb9ffa921fba274ec6645ae90362c4f6"
+ },
+ "model": {
+  "name": "minishlab/potion-base-8M",
+  "weights": {
+   "path": "potion-base-8M/model.safetensors",
+   "sha256": "0xf65d0f325faadc1e121c319e2faa41170d3fa07d8c89abd48ca5358d9a223de2"
+  },
+  "tokenizer": {
+   "path": "potion-base-8M/tokenizer.json",
+   "sha256": "0xbe9ca851be1f7c29143a9f062d17e01b01fcf297411797147f343c3713de5530"
+  }
+ },
+ "bm25": {
+  "k1": 0.9,
+  "b": 0.4,
+  "idf": "ln(1+(N-df+0.5)/(df+0.5))",
+  "tokens": "lowercase; [a-z0-9]+; minus stopwords",
+  "stopwords": [
+   "a",
+   "an",
+   "and",
+   "are",
+   "as",
+   "at",
+   "be",
+   "by",
+   "did",
+   "do",
+   "does",
+   "for",
+   "from",
+   "has",
+   "he",
+   "how",
+   "in",
+   "is",
+   "it",
+   "its",
+   "of",
+   "on",
+   "that",
+   "the",
+   "to",
+   "was",
+   "were",
+   "what",
+   "when",
+   "where",
+   "which",
+   "who",
+   "why",
+   "will",
+   "with"
+  ]
+ },
+ "dense": {
+  "tokenizer": "BERT uncased WordPiece",
+  "max_tokens": 512,
+  "drop_unk": true,
+  "vector": "sum of token rows, L2-normalised",
+  "similarity": "dot"
+ },
+ "fusion": {
+  "method": "rrf",
+  "k": 60,
+  "list_depth": 50,
+  "pool": 50,
+  "order": "score quantised to 1e-9 desc, then leaf index"
+ },
+ "selection": {
+  "filter": "SourceRegistry.areVerified",
+  "prompt_k": 5,
+  "rule": "first prompt_k verified candidates in rank order"
+ }
+}
