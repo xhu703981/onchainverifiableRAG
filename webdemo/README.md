@@ -28,4 +28,4 @@ Trust gap: the log proves *which* exact request/response bytes existed and when.
 Contracts: SourceRegistry 0x9350E7E458abe568B40c1Fc28c66dE674865878e · InferenceLog 0xc7CfFb4Ae006AccC82813829CCC466B964aBCAE3.
 Cost per question: about 0.005 testnet USDC of gas (commit + finalize) plus about $0.0001 for gpt-4o-mini.
 
-No-cost preview of the saved example: http://127.0.0.1:8765/?demo=verify  (or ?demo=answer, ?demo=tamper)
+No-cost preview of the saved example: http://127.0.0.1:8765/?demo=verify  (or ?demo=answer, ?demo=tamper, ?demo=model)

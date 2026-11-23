@@ -9,6 +9,7 @@
 - Retrieval (hybrid BM25 + dense) keeps only verified passages, checked live on-chain.
 - Each model call goes into `InferenceLog`. The hash of the exact prompt bytes and of the passage set is committed *before* the call. The hash of the exact response bytes is finalized *after* it, in a later block.
 - Anyone can verify an answer bundle against the public RPC: the citation hashes, their registration and trusted publisher, that the cited text was in the committed prompt, and that the answer matches the logged response.
+- The verifier also checks that the requested model matches its committed hash. It reads the served model and provider from the hashed response, so silent routing to another model shows up as a red check.
 
 ```mermaid
 flowchart LR
@@ -35,4 +36,4 @@ flowchart LR
 - SourceRegistry: [`0x9350E7E458abe568B40c1Fc28c66dE674865878e`](https://explorer.testnet.arc.io/address/0x9350E7E458abe568B40c1Fc28c66dE674865878e)
 - InferenceLog: [`0xc7CfFb4Ae006AccC82813829CCC466B964aBCAE3`](https://explorer.testnet.arc.io/address/0xc7CfFb4Ae006AccC82813829CCC466B964aBCAE3)
 
-**Limitation.** The log proves which exact prompt and response existed and when, and that the cited sources are genuine. It does not prove that the provider actually ran the model on that prompt, and it does not verify the model's reasoning.
+**Limitation.** The log proves which exact prompt and response existed and when, and that the cited sources are genuine. It does not prove that the provider actually ran the model on that prompt, and it does not verify the model's reasoning. The served model and provider are self-reported by the provider, not cryptographically proven.

@@ -177,7 +177,7 @@ class Engine:
                            request_body=req.decode("utf-8"), request_hash=hx(sha(req)),
                            passages=[dict(id=p["id"], content_hash=p["content_hash"]) for p in passages], passages_root=hx(root),
                            response_body_b64=base64.b64encode(raw).decode(), response_hash=hx(sha(raw)),
-                           provider_generation_id=json.loads(raw).get("id"), provider_model=json.loads(raw).get("model"),
+                           provider_generation_id=json.loads(raw).get("id"), provider_model=json.loads(raw).get("model"), provider=json.loads(raw).get("provider"),
                            commit_tx=c["tx"], commit_block=c["block"], finalize_tx=f["tx"], finalize_block=f["block"],
                            explorer=dict(commit=f"{EXPLORER}/tx/{c['tx']}", finalize=f"{EXPLORER}/tx/{f['tx']}",
                                          log_contract=f"{EXPLORER}/address/{INFERENCE_LOG}")),

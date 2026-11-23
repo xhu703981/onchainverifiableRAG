@@ -50,6 +50,7 @@
   .node.ok .dot svg,.node.bad .dot svg{opacity:1;transform:scale(1)}
   .node.ok .dot{color:var(--ok)}.node.bad .dot{color:var(--bad)}
   .lbl{font-size:12.5px;font-weight:400}
+  .node.wide{width:150px}
   .sub{font-size:11px;color:var(--faint);margin-top:-6px;white-space:nowrap}
   .node:hover .lbl{text-decoration:underline;text-decoration-color:var(--faint)}
   .why{margin-top:22px;font-size:13.5px;color:var(--bad);min-height:20px}
@@ -84,6 +85,9 @@ const ICON={ok:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
   bad:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>'};
 const DL='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>';
 const params=new URLSearchParams(location.search);
+const b64dec=s=>new TextDecoder().decode(Uint8Array.from(atob(s),c=>c.charCodeAt(0)));
+const b64enc=s=>{let r="";new TextEncoder().encode(s).forEach(x=>r+=String.fromCharCode(x));return btoa(r)};
+const bare=m=>String(m||"?").split("/").pop();
 
 fetch("/api/samples").then(r=>r.json()).then(s=>{
   s.filter(x=>x.answerable).sort(()=>Math.random()-.5).slice(0,4).forEach(x=>{const c=document.createElement("span");c.className="chip";c.textContent=x.question;c.onclick=()=>{$("#q").value=x.question;ask()};$("#chips").appendChild(c)});
@@ -111,7 +115,7 @@ function render(t,b){
   body.innerHTML=`<p class="a ${idk?"idk":""}">${esc(b.answer)}</p>
     <div class="bar">${b.citations.map((c,i)=>`<span class="cite" data-i="${i}">${c.id}</span>`).join("")}
       <span class="sp"></span>
-      <span class="menu"><span data-m="char">passage</span><span data-m="answer">answer</span><span data-m="prompt">prompt</span></span>
+      <span class="menu"><span data-m="char">passage</span><span data-m="answer">answer</span><span data-m="prompt">prompt</span><span data-m="model">model</span></span>
       <button class="icon" data-a="tamper" title="Tamper with a copy">tamper</button>
       <button class="icon" data-a="dl" title="Download bundle">${DL}</button>
       <button class="btn" data-a="verify">Verify</button></div>
@@ -128,6 +132,8 @@ function tamper(b,mode){
   const t=structuredClone(b);
   if(mode==="char"&&t.citations.length){const c=t.citations[0];const i=Math.floor(c.text.length/2);c.text=c.text.slice(0,i)+(c.text[i]==="x"?"y":"x")+c.text.slice(i+1);t._t=`one character of ${c.id}`}
   else if(mode==="answer"){t.answer=t.answer+" (edited)";t._t="the answer"}
+  else if(mode==="model"){const raw=b64dec(t.inference.response_body_b64);
+    t.inference.response_body_b64=b64enc(raw.replace(/"model":"[^"]*"/,'"model":"meta-llama/llama-3.1-8b-instruct"'));t._t="served model"}
   else {t.inference.request_body=t.inference.request_body.replace("[P1] ","[P1] Note: ");t._t="the prompt"}
   return t;
 }
@@ -149,17 +155,23 @@ function build(b,v){
     return {k:"s"+i,lbl:c.id,sub:"on-chain · trusted",ok:good,why:`${c.id}: `+(r&&r.status!=="PASS"?srcReason(r.reasons):"text was not in the committed prompt"),
       det:`<div class="t">${esc(c.text)}</div>sha256 ${c.content_hash}<br>CID ${c.cid}<br>publisher <a target=_blank href="${EXP}/address/${c.registrant}">${c.registrant}</a><br>registered <a target=_blank href="${c.explorer.tx}">${(c.registration_tx||"").slice(0,18)}…</a> · block ${c.block_number}`,
       href:c.explorer.tx}});
-  const pChecks=f(/^M1|^M2|^M3 (passages|passagesRoot)/);
+  const pChecks=f(/^M1|^M2|^M3 (passages|passagesRoot)/).filter(x=>!/^M2 model/.test(x.check));
   const prompt={k:"p",lbl:"Prompt",sub:"block "+inf.commit_block,ok:ok(pChecks),href:inf.explorer.commit,
      why:"prompt: "+(f(/^M2 sha256/).some(x=>!x.ok)?"bytes differ from the hash committed on-chain":"does not match the on-chain commit"),
      det:`request sha256 ${inf.request_hash}<br>passages root ${inf.passages_root}<br>commit <a target=_blank href="${inf.explorer.commit}">${inf.commit_tx.slice(0,18)}…</a> · block ${inf.commit_block}`};
+  const md=v&&v.model, mOk=ok(f(/^M2 model|^M4 sha256|^M6/));
+  const model={k:"m",lbl:bare(inf.model),wide:1,ok:mOk,href:inf.explorer.commit,
+     sub:md?`served ${bare(md.served)} · ${md.provider||"?"}`:"requested",
+     why:"model: "+(md&&!md.match?`requested ${bare(md.requested)}, served ${bare(md.served)}`
+        :f(/^M4 sha256/).some(x=>!x.ok)?"response bytes don't match the on-chain hash":"differs from the model committed on-chain"),
+     det:`requested ${esc(inf.model)} · sha256 committed on-chain<br>served ${esc(md?md.served:"")} · provider ${esc(md?md.provider:"")}<br>served model and provider are self-reported by the provider inside the hashed response`};
   const aChecks=f(/^M4|^M5/);
   const answer={k:"a",lbl:"Answer",sub:"block "+inf.finalize_block,ok:ok(aChecks),href:inf.explorer.finalize,
      why:"answer: "+(f(/^M4 bundle answer/).some(x=>!x.ok)?"differs from the response logged on-chain":"does not match the on-chain finalize"),
      det:`response sha256 ${inf.response_hash}<br>model ${esc(inf.model)}<br>finalize <a target=_blank href="${inf.explorer.finalize}">${inf.finalize_tx.slice(0,18)}…</a> · block ${inf.finalize_block}`};
-  return [[nodes[0]],srcs.length?srcs:[{k:"s",lbl:"Sources",sub:"none cited",ok:true,det:"no passages cited"}],[prompt],[answer]];
+  return [[nodes[0]],srcs.length?srcs:[{k:"s",lbl:"Sources",sub:"none cited",ok:true,det:"no passages cited"}],[prompt],[model],[answer]];
 }
-function nodeHTML(n){return `<div class="node wait" data-k="${n.k}" title="click for details"><div class="dot"></div><div class="lbl">${n.lbl}</div><div class="sub">${n.sub}</div></div>`}
+function nodeHTML(n){return `<div class="node wait${n.wide?" wide":""}" data-k="${n.k}" title="click for details"><div class="dot"></div><div class="lbl">${n.lbl}</div><div class="sub">${n.sub}</div></div>`}
 async function verify(body,b,tampered){
   body.querySelector(".ptx").innerHTML="";
   const vf=body.querySelector(".vf");
@@ -174,7 +186,7 @@ async function verify(body,b,tampered){
   for(let i=0;i<cols.length;i++){
     if(i){const l=vf.querySelector(`[data-l="${i}"]`);l.classList.add(cols[i-1].every(n=>n.ok)?"ok":"bad");await sleep(320)}
     for(const n of cols[i]){const el=vf.querySelector(`[data-k="${n.k}"]`);el.classList.remove("wait");el.classList.add(n.ok?"ok":"bad");
-      el.querySelector(".dot").innerHTML=n.ok?ICON.ok:ICON.bad; if(!n.ok&&n.k[0]==="s")el.querySelector(".sub").textContent="not verified"; if(!n.ok&&!firstBad)firstBad=n; await sleep(220)}
+      el.querySelector(".dot").innerHTML=n.ok?ICON.ok:ICON.bad; if(!n.ok&&n.k[0]==="s")el.querySelector(".sub").textContent="not verified"; if(n.k==="m")el.querySelector(".sub").textContent=n.sub; if(!n.ok&&!firstBad)firstBad=n; await sleep(220)}
   }
   const why=vf.querySelector(".why");
   if(firstBad){why.className="why";why.innerHTML=esc(firstBad.why)+(tampered?`<span class="tag">tampered ${esc(b._t||"copy")}</span>`:"")}
@@ -187,6 +199,7 @@ if(params.get("demo")) fetch("/api/example").then(r=>r.json()).then(async b=>{
   if(m==="cite") body.querySelector(".cite").click();
   if(m==="verify") verify(body,b,false);
   if(m==="tamper") verify(body,tamper(b,"char"),true);
+  if(m==="model") verify(body,tamper(b,"model"),true);
 });
 </script>
 </body>

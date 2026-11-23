@@ -16,6 +16,8 @@ Also checks that the RPC is on the expected chain and that the contract address 
 
 If the bundle has an "inference" section (on-chain InferenceLog), it ALSO checks the model call:
   M1 the log record exists, was written by an authorized logger, and is finalized
+  M6 served model/provider read from the hashed response; served model must match the requested one
+     (same id, or the same model pinned to a dated snapshot). Self-reported by the provider, not proven.
   M2 sha256(request_body bytes) == on-chain requestHash; the body is in canonical form; model/question
      id/answer id/client timestamp inside the hashed request match the bundle and the record
   M3 every [Pn] passage in the committed prompt hashes to the committed passage list / passagesRoot,
@@ -252,8 +254,13 @@ def verify_inference(rpc: RPC, b: dict) -> list[tuple[str, bool, str]]:
             "" if inprompt and inlist else "this passage was NOT in the prompt sent to the model")
 
     resp_bytes = base64.b64decode(inf["response_body_b64"])
-    chk("M4 sha256(raw response bytes) == on-chain responseHash", _sha(resp_bytes) == hexw("responseHash"),
+    resp_ok = _sha(resp_bytes) == hexw("responseHash")
+    chk("M4 sha256(raw response bytes) == on-chain responseHash", resp_ok,
         f"recomputed {_sha(resp_bytes)[:18]}... on-chain {hexw('responseHash')[:18]}...")
+    sm = served_model(resp_bytes); match, kind = model_match(inf["model"], sm["served"] or "")
+    chk("M6 served model (from the hashed response) matches the requested model", resp_ok and match,
+        f"requested {inf['model']} -> served {sm['served']} ({kind}{'' if resp_ok else ', response bytes not authentic'})"
+        f" · provider {sm['provider']} (self-reported)")
     try:
         content = json.loads(resp_bytes)["choices"][0]["message"]["content"]
         mj = json.loads(re.search(r"\{.*\}", content, re.S).group(0))
@@ -282,6 +289,39 @@ def verify_inference(rpc: RPC, b: dict) -> list[tuple[str, bool, str]]:
     return out
 
 
+_VERSION_SUFFIX = r"-(\d{4}-\d{2}-\d{2}|\d{8}|\d{4}|latest)"
+
+
+def model_match(requested: str, served: str) -> tuple[bool, str]:
+    """Compare the requested model id with the served one reported in the response.
+
+    'exact' if identical (ignoring case), 'version' if served is the same model pinned to a dated
+    snapshot (openai/gpt-4o-mini vs gpt-4o-mini-2024-07-18), else 'mismatch' (gpt-4o vs gpt-4o-mini).
+    A vendor prefix only has to agree when both strings carry one."""
+    rq, sv = (requested or "").strip().lower(), (served or "").strip().lower()
+    if not rq or not sv:
+        return False, "mismatch"
+    if rq == sv:
+        return True, "exact"
+    rv, _, rn = rq.rpartition("/"); sv_v, _, sn = sv.rpartition("/")
+    if rv and sv_v and rv != sv_v:
+        return False, "mismatch"
+    if rn == sn:
+        return True, "exact"
+    if re.fullmatch(re.escape(rn) + _VERSION_SUFFIX, sn):
+        return True, "version"
+    return False, "mismatch"
+
+
+def served_model(resp_bytes: bytes) -> dict:
+    """Served model / provider exactly as self-reported inside the hashed response bytes."""
+    try:
+        r = json.loads(resp_bytes)
+        return dict(served=r.get("model"), provider=r.get("provider"))
+    except Exception:  # noqa: BLE001
+        return dict(served=None, provider=None)
+
+
 def verify_bundle(b: dict, rpc_url: str = DEFAULT_RPC, trust: list[str] | None = None) -> dict:
     """Structured version of the CLI checks (used by the web demo)."""
     rpc = RPC(rpc_url)
@@ -295,7 +335,15 @@ def verify_bundle(b: dict, rpc_url: str = DEFAULT_RPC, trust: list[str] | None =
     cites = [verify_citation(rpc, contract, c, my_trust) for c in b.get("citations", [])]
     inf = verify_inference(rpc, b) if "inference" in b else []
     ok = bool(cites) and all(r["status"] == "PASS" for r in cites) and all(x[1] for x in inf)
-    return dict(all_pass=ok, header=[dict(check=n, ok=o, detail=d) for n, o, d in head], citations=cites,
+    model = None
+    if "inference" in b:
+        try:
+            sm = served_model(base64.b64decode(b["inference"]["response_body_b64"]))
+        except Exception:  # noqa: BLE001
+            sm = dict(served=None, provider=None)
+        m_ok, kind = model_match(b["inference"].get("model", ""), sm["served"] or "")
+        model = dict(requested=b["inference"].get("model"), served=sm["served"], provider=sm["provider"], match=m_ok, kind=kind)
+    return dict(all_pass=ok, model=model, header=[dict(check=n, ok=o, detail=d) for n, o, d in head], citations=cites,
                 model_call=[dict(check=n, ok=o, detail=d) for n, o, d in inf], owner=as_addr(rpc.call(contract, "owner()")),
                 rpc_calls=rpc.n)
 
@@ -338,7 +386,7 @@ def main(argv=None) -> int:
         if inf_checks:
             print(f"Model call (InferenceLog {b['inference']['log_contract']}, answer_id {b['inference']['answer_id'][:18]}...):")
             for n, o, d in inf_checks:
-                print(f"  [{'PASS' if o else 'FAIL'}] {n}" + (f"  -- {d}" if d and not o else ""))
+                print(f"  [{'PASS' if o else 'FAIL'}] {n}" + (f"  -- {d}" if d and (not o or n.startswith("M6")) else ""))
         print("RESULT:", ("ALL CHECKS PASSED" if inf_checks else "ALL CITATIONS VERIFIED") if ok else "VERIFICATION FAILED", f"({rpc.n} RPC calls)")
     return 0 if ok else 1
 

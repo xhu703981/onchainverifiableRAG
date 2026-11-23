@@ -35,3 +35,17 @@ def test_canonical_and_passage_parsing():
     assert canonical({"b": 1, "a": "é"}) == '{"a":"é","b":1}'.encode("utf-8")
     user = "intro\n\n[P1] first passage\nwith newline\n\n[P2] second\n\nQuestion: q?"
     assert PASSAGE_RE.findall(user) == [("P1", "first passage\nwith newline"), ("P2", "second")]
+
+
+def test_model_match():
+    from verify_citations import model_match, served_model
+    assert model_match("openai/gpt-4o-mini", "openai/gpt-4o-mini") == (True, "exact")
+    assert model_match("openai/gpt-4o-mini", "gpt-4o-mini") == (True, "exact")
+    assert model_match("openai/gpt-4o-mini", "openai/gpt-4o-mini-2024-07-18") == (True, "version")
+    assert model_match("openai/gpt-4o-mini", "gpt-4o-mini-2024-07-18") == (True, "version")
+    assert model_match("openai/gpt-4o", "openai/gpt-4o-mini") == (False, "mismatch")
+    assert model_match("openai/gpt-4o-mini", "openai/gpt-4o") == (False, "mismatch")
+    assert model_match("openai/gpt-4o-mini", "meta-llama/gpt-4o-mini") == (False, "mismatch")
+    assert model_match("openai/gpt-4o-mini", "") == (False, "mismatch")
+    assert served_model(b'{"model":"openai/gpt-4o-mini","provider":"OpenAI"}') == dict(served="openai/gpt-4o-mini", provider="OpenAI")
+    assert served_model(b"not json") == dict(served=None, provider=None)
