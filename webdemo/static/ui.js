@@ -6,10 +6,18 @@
   const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const bare = (m) => String(m || "?").split("/").pop();
-  const ICON = { ok: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
-    bad: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>' };
-  const DL = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>';
+  // custom glyphs: verified = filled seal with a square-capped tick; failed = hollow ring with a cross (shape, not only colour)
+  const MARK = { ok: "M11.2 17.6l3.9 3.9 7.7-8.4", bad: "M12.6 12.6l8.8 8.8M21.4 12.6l-8.8 8.8" };
+  const SEAL = (ok) => `<svg width="15" height="15" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="15.5" fill="${ok ? "var(--seal)" : "none"}" stroke="${ok ? "var(--seal)" : "var(--fail)"}" stroke-width="${ok ? 1 : 2.4}"/><path d="${ok ? MARK.ok : MARK.bad}" fill="none" stroke="${ok ? "var(--paper)" : "var(--fail)"}" stroke-width="${ok ? 3 : 2.6}" stroke-linecap="square"/></svg>`;
+  const DL = '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="square" aria-hidden="true"><path d="M8 2.5v8M4.5 7.5L8 11l3.5-3.5M3 13.5h10"/></svg>';
+  const hexSpans = (h, other) => { // group a hex string in 8s; underline characters that differ from `other`
+    const s = String(h ?? ""); if (!/^0x[0-9a-f]+$/i.test(s) && !/^b[a-z2-7]+$/.test(s)) return esc(s);
+    const pre = s.startsWith("0x") ? "0x" : "", body = s.slice(pre.length), ob = other ? String(other).slice(pre.length) : null; let out = esc(pre);
+    for (let i = 0; i < body.length; i += 8) { let g = ""; for (let j = i; j < Math.min(i + 8, body.length); j++) g += ob && ob[j] !== body[j] ? `<b>${esc(body[j])}</b>` : esc(body[j]); out += `<span>${g}</span>`; }
+    return `<span class="hx">${out}</span>`; };
   try { performance.setResourceTimingBufferSize(5000); } catch (e) {}
+  // load every face up front so verifying never triggers a request to the page's own origin
+  try { ["400 12px 'Plex Mono'", "500 12px 'Plex Mono'", "400 12px 'Plex Sans'", "500 12px 'Plex Sans'", "400 12px Newsreader"].forEach((f) => document.fonts.load(f)); } catch (e) {}
 
   function newTurn(thread, q) {
     const t = document.createElement("div"); t.className = "turn";
@@ -24,7 +32,7 @@
         <span class="sp"></span>
         ${b.inference ? `<span class="menu"><span data-m="char">passage</span><span data-m="answer">answer</span><span data-m="prompt">prompt</span><span data-m="model">model</span></span>
         <button class="icon" data-a="tamper" title="Tamper with a copy, then verify it">tamper</button>` : ""}
-        ${opt.download === false ? "" : `<button class="icon" data-a="dl" title="Download bundle">${DL}</button>`}
+        ${opt.download === false ? "" : `<button class="icon" data-a="dl" title="Download bundle" aria-label="Download bundle">${DL}</button>`}
         <button class="btn" data-a="verify">Verify</button></div>
       <div class="ptx"></div><div class="vf"></div>`;
     body.querySelectorAll(".cite").forEach((el) => (el.onclick = () => {
@@ -77,34 +85,37 @@
   const SEL2SIG = () => { const m = {}; for (const s in A().SEL) m[A().SEL[s]] = s; return m; };
   function rpcTitle(it) {
     const m = it.req.method;
-    if (m === "eth_call") { const d = it.req.params[0].data.slice(2), sig = SEL2SIG()[d.slice(0, 8)] || d.slice(0, 8); return `eth_call · ${sig}`; }
-    return m;
+    if (m === "eth_call") { const d = it.req.params[0].data.slice(2); return [m, SEL2SIG()[d.slice(0, 8)] || "0x" + d.slice(0, 8)]; }
+    const p = it.req.params[0]; return [m, typeof p === "string" ? (p.length > 20 ? p.slice(0, 12) + "…" + p.slice(-6) : p) : ""];
   }
   function copyBtn(text) { return `<button class="copy" data-copy="${esc(text)}">copy</button>`; }
+  const cmdRow = (cmd) => `<div class="cmdline"><code>${esc(cmd)}</code>${copyBtn(cmd)}</div>`;
   function evidenceHTML(n, v) {
     const ev = v.evidence || {}, items = [].concat(...n.tags.map((t) => ev[t] || []));
     if (n.rec) items.unshift(...(ev.record || []).filter((x) => x.kind === "rpc" && /213681cd/.test(JSON.stringify(x.req.params))));
     let h = "";
-    if (n.checks.length) h += `<h4>Checks</h4>` + n.checks.map((c) => `<div class="ck ${c.ok ? "ok" : "bad"}"><b>${c.ok ? "✓" : "✗"}</b><span>${esc(strip(c.check))}${c.detail && (!c.ok || /^M6/.test(c.check)) ? ` <span class="d">· ${esc(c.detail)}</span>` : ""}</span></div>`).join("");
+    if (n.checks.length) h += `<h4>Checks</h4>` + n.checks.map((c) => `<div class="ck ${c.ok ? "ok" : "bad"}"><i></i><span>${esc(strip(c.check))}${c.detail && (!c.ok || /^M6/.test(c.check)) ? ` <span class="d">· ${esc(c.detail)}</span>` : ""}</span></div>`).join("");
     const cmps = items.filter((x) => x.kind === "cmp" || x.kind === "fact");
-    if (cmps.length) h += `<h4>Recomputed in your browser vs on-chain</h4>` + cmps.map((x) => x.kind === "fact"
-      ? `<div class="cmp"><span class="k lab2">${esc(x.label)}<span class="pill ${x.ok ? "ok" : "bad"}">${x.ok ? "ok" : "no"}</span></span>
-         <span class="k">value</span><span class="${x.ok ? "hl-ok" : "hl-bad"}">${esc(x.value)}</span>${x.note ? `<span class="k"></span><span class="k">${esc(x.note)}</span>` : ""}</div>`
-      : `<div class="cmp"><span class="k lab2">${esc(x.label)}<span class="pill ${x.ok ? "ok" : "bad"}">${x.ok ? "match" : "differs"}</span></span>
-         <span class="k">local</span><span class="${x.ok ? "hl-ok" : "hl-bad"}">${esc(x.local)}</span>
-         <span class="k">${/vs bundle/.test(x.label) ? "bundle" : "on-chain"}</span><span class="${x.ok ? "hl-ok" : "hl-bad"}">${esc(x.chain)}</span>
-         ${x.cmd ? `<span class="k">shell</span><span class="cmd">${esc(x.cmd)} ${copyBtn(x.cmd)}</span>` : ""}</div>`).join("");
+    if (cmps.length) h += `<h4>Recomputed in your browser <small>against the chain</small></h4>` + cmps.map((x) => x.kind === "fact"
+      ? `<div class="ev"><div class="hd">${esc(x.label)}<span class="verdict ${x.ok ? "ok" : "bad"}">${x.ok ? "confirmed" : "not confirmed"}</span></div>
+         <div class="kv"><span class="k">value</span><span class="v">${hexSpans(x.value)}</span>${x.note ? `<span class="k"></span><span class="v note">${esc(x.note)}</span>` : ""}</div></div>`
+      : `<div class="ev"><div class="hd">${esc(x.label)}<span class="verdict ${x.ok ? "ok" : "bad"}">${x.ok ? "≡ identical" : "≠ differs"}</span></div>
+         <div class="kv"><span class="k">local</span><span class="v">${hexSpans(x.local, x.chain)}</span>
+         <span class="k">${/vs bundle/.test(x.label) ? "bundle" : "on-chain"}</span><span class="v">${hexSpans(x.chain, x.local)}</span>
+         ${x.cmd ? `<span class="k">shell</span><span class="v">${cmdRow(x.cmd)}</span>` : ""}</div></div>`).join("");
     const rpcs = items.filter((x) => x.kind === "rpc");
-    if (rpcs.length) h += `<h4>Raw RPC · direct to ${esc(new URL(v.rpc).host)}</h4>` + rpcs.map((x) => `<details class="rpc"><summary><span>${esc(rpcTitle(x))}</span><span class="ms">${x.ms} ms</span></summary><div class="x">
-        <div class="lab">request</div><pre>${esc(JSON.stringify(x.req, null, 1))}</pre>
-        <div class="lab">response</div><pre>${esc(JSON.stringify(x.res, null, 1))}</pre>
-        <div class="lab">reproduce in a terminal (Foundry cast)</div><div class="cast"><pre>${esc(x.cast)}</pre>${copyBtn(x.cast)}</div>
-        ${x.href ? `<a class="ext" target="_blank" rel="noopener" href="${esc(x.href)}">open in explorer ↗</a>` : ""}</div></details>`).join("");
+    if (rpcs.length) h += `<h4>Raw RPC <small>direct to ${esc(new URL(v.rpc).host)}</small></h4><div class="rpcs">` + rpcs.map((x) => {
+        const [m, sig] = rpcTitle(x);
+        return `<details class="rpc"><summary><span class="n">${String(x.req.id).padStart(2, "0")}</span><span class="m">${esc(m)}</span><span class="s">${esc(sig)}</span><span class="ms">${x.ms} ms</span><span class="t"></span></summary>
+        <div class="x"><span class="k">request</span><pre>${esc(JSON.stringify(x.req, null, 2))}</pre>
+        <span class="k">response</span><pre>${esc(JSON.stringify(x.res, null, 2))}</pre>
+        <span class="k">reproduce</span><div class="cast">${cmdRow(x.cast)}</div>
+        ${x.href ? `<span class="k">explorer</span><span><a target="_blank" rel="noopener" href="${esc(x.href)}">${esc(x.href.replace(/^https:\/\//, "").replace(/(0x[0-9a-fA-F]{8})[0-9a-fA-F]{24,}/, "$1…"))} ↗</a></span>` : ""}</div></details>`; }).join("") + `</div>`;
     return h;
   }
 
   // ---------- verify (in the browser) ----------
-  function nodeHTML(n) { return `<div class="node wait${n.wide ? " wide" : ""}" data-k="${n.k}" title="click for evidence"><div class="dot"></div><div class="lbl">${esc(n.lbl)}</div><div class="sub">${esc(n.sub)}</div></div>`; }
+  function nodeHTML(n) { return `<div class="node wait${n.wide ? " wide" : ""}" data-k="${n.k}" title="click for evidence"><svg class="g" viewBox="0 0 34 34" aria-hidden="true"><circle class="ring" cx="17" cy="17" r="15.5"/><path class="mk"/></svg><div class="lbl">${esc(n.lbl)}</div><div class="sub">${esc(n.sub)}</div></div>`; }
   async function verify(body, b, tampered) {
     body.querySelector(".ptx").innerHTML = "";
     const vf = body.querySelector(".vf"), cols0 = build(b, null);
@@ -129,16 +140,16 @@
     for (let i = 0; i < cols.length; i++) {
       if (i) { vf.querySelector(`[data-l="${i}"]`).classList.add(cols[i - 1].every((n) => n.ok) ? "ok" : "bad"); await sleep(300); }
       for (const n of cols[i]) { const el = vf.querySelector(`[data-k="${n.k}"]`); el.classList.remove("wait"); el.classList.add(n.ok ? "ok" : "bad");
-        el.querySelector(".dot").innerHTML = n.ok ? ICON.ok : ICON.bad;
+        el.querySelector(".mk").setAttribute("d", n.ok ? MARK.ok : MARK.bad); el.setAttribute("aria-label", `${n.lbl}: ${n.ok ? "verified" : "failed"}`);
         if (!n.ok && n.src) el.querySelector(".sub").textContent = "not verified";
         if (n.k === "m") el.querySelector(".sub").textContent = n.sub;
         if (!n.ok && !bad) bad = n; await sleep(200); }
     }
     const why = vf.querySelector(".why");
-    if (bad) { why.className = "why"; why.innerHTML = esc(bad.why) + (tampered ? `<span class="tag">tampered ${esc(b._t || "copy")}</span>` : ""); }
-    else { why.className = "why okk"; why.textContent = v.all_pass ? "Verified on Arc" : "Model call verified · no sources were cited"; }
+    if (bad) { why.className = "why"; why.innerHTML = SEAL(false) + `<span>${esc(bad.why)}</span>` + (tampered ? `<span class="tag">tampered ${esc(b._t || "copy")}</span>` : ""); }
+    else { why.className = "why okk"; why.innerHTML = SEAL(true) + `<span>${v.all_pass ? "Verified on Arc" : "Model call verified · no sources were cited"}</span>`; }
     G.__lastVerify = v;
-    vf.querySelector(".how").textContent = `verified in your browser · direct to ${new URL(v.rpc).host} · ${v.rpc_calls} RPC calls · ${mine} calls to our server`;
+    vf.querySelector(".how").textContent = `Checked in your browser, directly against ${new URL(v.rpc).host}: ${v.rpc_calls} RPC calls, ${mine} to our server.`;
     return v;
   }
 

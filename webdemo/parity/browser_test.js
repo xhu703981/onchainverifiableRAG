@@ -10,7 +10,7 @@ const [base, screens, outJson] = process.argv.slice(2);
     const reqs = []; p.on("request", (r) => reqs.push({ url: r.url(), t: Date.now() }));
     await p.goto(url, { waitUntil: "networkidle0" }); return { p, reqs };
   }
-  const waitDone = (p) => p.waitForFunction(() => [...document.querySelectorAll(".how")].some((e) => /verified in your browser|could not reach/.test(e.textContent)), { timeout: 90000 });
+  const waitDone = (p) => p.waitForFunction(() => [...document.querySelectorAll(".how")].some((e) => /in your browser|could not reach/.test(e.textContent)), { timeout: 90000 });
   const audit = (reqs, t0) => { const after = reqs.filter((r) => r.t >= t0), host = (u) => (u.startsWith("file:") ? "file" : new URL(u).host);
     const by = {}; after.forEach((r) => (by[host(r.url)] = (by[host(r.url)] || 0) + 1)); return by; };
 
