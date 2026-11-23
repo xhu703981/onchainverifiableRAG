@@ -14,7 +14,17 @@ standard library and plain JSON-RPC to a public endpoint, and recomputes everyth
      the on-chain registration timestamp (so this tx is the one that registered it)
 Also checks that the RPC is on the expected chain and that the contract address has code.
 
-If the bundle has an "inference" section (on-chain InferenceLog), it ALSO checks the model call:
+If the bundle has a "retrieval" section (corpus committed on CorpusRegistry), it ALSO checks retrieval:
+  C1 the corpus version on-chain (root, leaf count, config hash) is the one the bundle names, published
+     by an authorized publisher in the cited tx
+  C2 sha256(retrieval config) == on-chain configHash; corpus root, config hash and sha256(ranked candidate
+     list) are inside the hashed request (so the ranking was fixed before the model call)
+  C3 every ranked candidate has a valid Merkle inclusion proof against the on-chain root; every prompt
+     passage is a ranked candidate
+  C4 the prompt is exactly the first k candidates that are verified on SourceRegistry (none skipped)
+  C5 replay: fetch the committed corpus, model and retriever code (sha256-checked against the config),
+     rerun retrieval for the question, and require the identical ranked list  (needs numpy; --no-replay skips)
+ (on-chain InferenceLog), it ALSO checks the model call:
   M1 the log record exists, was written by an authorized logger, and is finalized
   M6 served model/provider read from the hashed response; served model must match the requested one
      (same id, or the same model pinned to a dated snapshot). Self-reported by the provider, not proven.
@@ -29,6 +39,7 @@ If the bundle has an "inference" section (on-chain InferenceLog), it ALSO checks
 It does NOT verify the model's reasoning, and cannot prove the provider (not us) produced the response.
 
 usage:  python verify_citations.py bundle.json [--rpc URL] [--trust 0xPUBLISHER ...] [--json]
+                                    [--artifacts DIR] [--no-replay]
 exit code: 0 if every citation PASSES, 1 otherwise.
 """
 from __future__ import annotations
@@ -58,7 +69,12 @@ SEL = {
     "isLogger(address)": "a9132b73",
     "commit(bytes32,bytes32,bytes32,bytes32,bytes32,uint16)": "c9b01262",
     "finalize(bytes32,bytes32)": "c65ff8f2",
+    "corpusInfo(uint256)": "e0509c67",
+    "corpusUri(uint256)": "72043b4c",
+    "isPublisher(address)": "41859ac8",
+    "areVerified(bytes32[])": "633fb9d6",
 }
+TOPIC_PUBLISHED = "0xdebe376ae487887d2f2d702990e68cfabfda127316e4bfadd2fb12543feda5f0"  # CorpusPublished(uint256,bytes32,bytes32,uint32,string,address)
 TOPIC_COMMITTED = "0xadf8196e120a50637d1c52b3c736d871cbcfc2d5ca0657e25fdc896d309b109f"  # Committed(bytes32,bytes32,bytes32,bytes32,bytes32,uint16,address,uint256)
 TOPIC_FINALIZED = "0x02a8371a72fc60e40fcdf94ce82c6dce89d0cb3cc9548163b5b7a708d6cde9bc"  # Finalized(bytes32,bytes32,address,uint256)
 # event topic0 = keccak256(event signature); `cast sig-event "..."`
@@ -200,6 +216,51 @@ def verify_citation(rpc: RPC, contract: str, c: dict, my_trust: set[str] | None)
     return dict(id=c.get("id"), status="FAIL" if fails else "PASS", reasons=fails, notes=notes, recomputed_hash=h)
 
 
+# ---------------------------------------------------------------- corpus Merkle tree
+# leaf = sha256(0x00 || passageHash), node = sha256(0x01 || left || right); leaves sorted by passageHash;
+# an odd node at the end of a level is promoted unchanged. (Same as CorpusRegistry.sol / arcverify.js.)
+def merkle_leaf(passage_hash: bytes) -> bytes:
+    return hashlib.sha256(b"\x00" + passage_hash).digest()
+
+
+def merkle_node(left: bytes, right: bytes) -> bytes:
+    return hashlib.sha256(b"\x01" + left + right).digest()
+
+
+def merkle_levels(passage_hashes: list[bytes]) -> list[list[bytes]]:
+    lv = [[merkle_leaf(h) for h in passage_hashes]]
+    while len(lv[-1]) > 1:
+        cur = lv[-1]
+        lv.append([merkle_node(cur[i], cur[i + 1]) if i + 1 < len(cur) else cur[i] for i in range(0, len(cur), 2)])
+    return lv
+
+
+def merkle_proof(levels: list[list[bytes]], index: int) -> list[str]:
+    path = []
+    for cur in levels[:-1]:
+        sib = index ^ 1
+        if sib < len(cur):
+            path.append("0x" + cur[sib].hex())
+        index //= 2
+    return path
+
+
+def merkle_verify(passage_hash: str, index: int, leaf_count: int, path: list[str], root: str) -> bool:
+    if not (0 <= index < leaf_count):
+        return False
+    h, n, p = merkle_leaf(bytes.fromhex(passage_hash[2:])), leaf_count, 0
+    try:
+        while n > 1:
+            if index % 2 == 1:
+                h = merkle_node(bytes.fromhex(path[p][2:]), h); p += 1
+            elif index + 1 < n:
+                h = merkle_node(h, bytes.fromhex(path[p][2:])); p += 1
+            index //= 2; n = (n + 1) // 2
+    except (IndexError, ValueError):
+        return False
+    return p == len(path) and "0x" + h.hex() == root.lower()
+
+
 def _sha(b: bytes) -> str:
     return "0x" + hashlib.sha256(b).hexdigest()
 
@@ -300,6 +361,140 @@ def verify_inference(rpc: RPC, b: dict) -> list[tuple[str, bool, str]]:
     return out
 
 
+# ---------------------------------------------------------------- corpus / retrieval (C checks)
+_RETRIEVERS: dict = {}
+
+
+def _fetch(url: str) -> bytes:
+    req = urllib.request.Request(url, headers={"User-Agent": "verify-citations/1.0"})
+    with urllib.request.urlopen(req, timeout=120) as r:
+        return r.read()
+
+
+def load_artifacts(cfg: dict, config_url: str, artifacts_dir: str | None = None) -> dict:
+    """Fetch every artifact the committed config names (or read it from a local dir) and sha256-check it."""
+    import os
+    import urllib.parse
+    out = {}
+    for name, a in [("corpus", cfg["corpus"]), ("retriever code", cfg["retriever_code"]),
+                    ("model weights", cfg["model"]["weights"]), ("tokenizer", cfg["model"]["tokenizer"])]:
+        if artifacts_dir:
+            data = open(os.path.normpath(os.path.join(artifacts_dir, a["path"])), "rb").read()
+        else:
+            cache = os.path.join(os.path.expanduser("~"), ".cache", "verify_citations", a["sha256"][2:])
+            if os.path.exists(cache):
+                data = open(cache, "rb").read()
+            else:
+                data = _fetch(urllib.parse.urljoin(config_url, a["path"]))
+                if _sha(data) == a["sha256"]:
+                    os.makedirs(os.path.dirname(cache), exist_ok=True); open(cache, "wb").write(data)
+        out[name] = (data, _sha(data) == a["sha256"])
+    return out
+
+
+def _abi_bytes32_array(hs: list[str]) -> str:
+    return "%064x" % 32 + "%064x" % len(hs) + "".join(h[2:].lower() for h in hs)
+
+
+def _decode_bool_array(b: bytes) -> list[bool]:
+    off = as_int(word(b, 0)); n = as_int(b[off: off + 32])
+    return [as_int(b[off + 32 + 32 * i: off + 64 + 32 * i]) == 1 for i in range(n)]
+
+
+def replay_diff(committed: list[dict], replayed: list[dict]) -> str:
+    """'' if identical (ids, order, ranks; rrf within 1e-9), else a short reason."""
+    cids = [x["id"] for x in committed]
+    for r, x in enumerate(replayed):
+        if x["id"] not in cids:
+            return f"replay ranks {x['id'][:12]}... at #{r + 1}, but the answer's list omits it"
+    for r, (a, b) in enumerate(zip(replayed, committed)):
+        if a["id"] != b["id"]:
+            return f"rank #{r + 1} differs: replay {a['id'][:12]}..., answer {b['id'][:12]}..."
+        if a.get("bm25") != b.get("bm25") or a.get("dense") != b.get("dense") or abs(a["rrf"] - float(b.get("rrf", 0))) > 1e-9:
+            return f"rank #{r + 1} scores differ"
+    if len(replayed) != len(committed):
+        return f"replay returns {len(replayed)} candidates, the answer lists {len(committed)}"
+    return ""
+
+
+def verify_corpus(rpc: RPC, b: dict, replay: bool = True, artifacts_dir: str | None = None) -> list[tuple]:
+    """Return a list of (check, ok, detail); ok is None for a check that was not run."""
+    R = b["retrieval"]; out = []
+    def chk(name, ok, detail=""):
+        out.append((name, ok if ok is None else bool(ok), detail)); return bool(ok)
+    reg, ver = R["corpus_registry"], int(R["corpus_version"])
+    if not chk("C1 CorpusRegistry has code", rpc("eth_getCode", [reg, "latest"]) not in ("0x", "0x0"), reg):
+        return out
+    info = rpc.call(reg, "corpusInfo(uint256)", "%064x" % ver)
+    root, cfg_hash = "0x" + word(info, 0).hex(), "0x" + word(info, 1).hex()
+    leaves, publisher = as_int(word(info, 2)), as_addr(word(info, 3))
+    chk("C1 on-chain corpus version matches the bundle (root, leaf count, config hash)",
+        root == R["corpus_root"].lower() and leaves == int(R["leaf_count"]) and cfg_hash == R["config_hash"].lower(),
+        f"v{ver} · {leaves} leaves")
+    chk("C1 corpus published by an authorized publisher", as_int(rpc.call(reg, "isPublisher(address)", pad_addr(publisher))) == 1, publisher)
+    rc = rpc("eth_getTransactionReceipt", [R["publish_tx"]])
+    chk("C1 publish tx emitted CorpusPublished(version, root)", bool(rc) and int(rc["status"], 16) == 1 and any(
+        l["address"].lower() == reg.lower() and l["topics"][0] == TOPIC_PUBLISHED and int(l["topics"][1], 16) == ver
+        and l["topics"][2] == root for l in rc["logs"]), R["publish_tx"])
+
+    cfg_raw = R["config_json"].encode("utf-8")
+    chk("C2 sha256(retrieval config) == on-chain configHash", _sha(cfg_raw) == cfg_hash, f"recomputed {_sha(cfg_raw)[:18]}...")
+    cfg = json.loads(cfg_raw)
+    ranked_raw = R["ranked_json"].encode("utf-8"); ranked = json.loads(ranked_raw); rh = _sha(ranked_raw)
+    body = json.loads(b["inference"]["request_body"]) if "inference" in b else {}
+    sysmsg = next((m["content"] for m in body.get("messages", []) if m.get("role") == "system"), "")
+    chk("C2 corpus, config and ranked-list hashes are inside the hashed request",
+        f"corpus=v{ver}:{root}" in sysmsg and f"retrieval_config={cfg_hash}" in sysmsg and f"retrieval={rh}" in sysmsg,
+        f"sha256(ranked list) {rh[:18]}...")
+
+    proofs = R.get("proofs", [])
+    bad = next((r for r, x in enumerate(ranked) if r >= len(proofs) or not merkle_verify(
+        x["id"], int(proofs[r]["leaf_index"]), leaves, proofs[r]["path"], root)), None)
+    chk("C3 every ranked candidate has a valid inclusion proof against the on-chain root",
+        bad is None, f"{len(ranked)} of {len(ranked)} proofs valid" if bad is None
+        else f"candidate #{bad + 1} {ranked[bad]['id'][:12]}... is not in the committed corpus")
+    ids = [x["id"] for x in ranked]
+    prompt = [p["content_hash"].lower() for p in b.get("inference", {}).get("passages", [])]
+    chk("C3 every prompt passage is a ranked candidate", all(h in ids for h in prompt), f"{len(prompt)} prompt passages")
+    ver_now = _decode_bool_array(rpc.call(b["contract"], "areVerified(bytes32[])", _abi_bytes32_array(ids)))
+    want = [h for h, v in zip(ids, ver_now) if v][: int(cfg["selection"]["prompt_k"])]
+    chk("C4 prompt = the first k verified candidates in rank order (none skipped)", want == prompt,
+        f"{sum(ver_now)} of {len(ids)} candidates verified on SourceRegistry")
+
+    if not replay:
+        chk("C5 replay of the committed retrieval", None, "skipped (--no-replay)"); return out
+    ub = rpc.call(reg, "corpusUri(uint256)", "%064x" % ver); uri = dyn_string(ub, as_int(word(ub, 0)))
+    try:
+        import numpy  # noqa: F401
+        arts = load_artifacts(cfg, uri, artifacts_dir)
+    except Exception as e:  # noqa: BLE001
+        chk("C5 replay of the committed retrieval", None, f"not run: {type(e).__name__}"); return out
+    names = [n for n, (_, ok) in arts.items() if not ok]
+    if not chk("C5 fetched corpus, retriever code, weights and tokenizer match the committed config", not names,
+               "sha256 match" if not names else f"{names[0]} sha256 differs from the committed config"):
+        return out
+    rows = [json.loads(l) for l in arts["corpus"][0].decode("utf-8").splitlines() if l.strip()]
+    lv = merkle_levels([bytes.fromhex(r["hash"][2:]) for r in rows])
+    chk("C5 Merkle root of the fetched corpus == on-chain root", "0x" + lv[-1][0].hex() == root and len(rows) == leaves,
+        f"{len(rows)} passages")
+    key = cfg_hash
+    if key not in _RETRIEVERS:
+        import importlib.util, os, tempfile
+        tmp = os.path.join(tempfile.gettempdir(), f"retrieval_{arts['retriever code'][0] and _sha(arts['retriever code'][0])[2:14]}.py")
+        open(tmp, "wb").write(arts["retriever code"][0])  # the committed, sha256-checked retriever code
+        spec = importlib.util.spec_from_file_location("committed_retriever", tmp); mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        tok = json.loads(arts["tokenizer"][0])["model"]["vocab"]
+        wpath = tmp + ".safetensors"; open(wpath, "wb").write(arts["model weights"][0])
+        _RETRIEVERS[key] = mod.Retriever(rows, tok, mod.load_weights(wpath), cfg)
+    rep = _RETRIEVERS[key].rank(R.get("query", b.get("question", "")))
+    d = replay_diff(ranked, rep)
+    chk("C5 replaying the committed retriever gives the same ranked candidates", not d,
+        f"{len(rep)} candidates, identical ids and order" if not d else d)
+    chk("C5 replay query == bundle question", R.get("query", b.get("question")) == b.get("question"))
+    return out
+
+
 _VERSION_SUFFIX = r"-(\d{4}-\d{2}-\d{2}|\d{8}|\d{4}|latest)"
 
 
@@ -333,7 +528,8 @@ def served_model(resp_bytes: bytes) -> dict:
         return dict(served=None, provider=None)
 
 
-def verify_bundle(b: dict, rpc_url: str = DEFAULT_RPC, trust: list[str] | None = None) -> dict:
+def verify_bundle(b: dict, rpc_url: str = DEFAULT_RPC, trust: list[str] | None = None, replay: bool = True,
+                  artifacts_dir: str | None = None) -> dict:
     """Structured version of the CLI checks (used by the web demo)."""
     rpc = RPC(rpc_url)
     chain = int(rpc("eth_chainId", []), 16)
@@ -345,7 +541,8 @@ def verify_bundle(b: dict, rpc_url: str = DEFAULT_RPC, trust: list[str] | None =
     my_trust = {x.lower() for x in trust} if trust is not None else None
     cites = [verify_citation(rpc, contract, c, my_trust) for c in b.get("citations", [])]
     inf = verify_inference(rpc, b) if "inference" in b else []
-    ok = bool(cites) and all(r["status"] == "PASS" for r in cites) and all(x[1] for x in inf)
+    cor = verify_corpus(rpc, b, replay, artifacts_dir) if "retrieval" in b else []
+    ok = bool(cites) and all(r["status"] == "PASS" for r in cites) and all(x[1] for x in inf) and all(x[1] is not False for x in cor)
     model = None
     if "inference" in b:
         try:
@@ -355,7 +552,8 @@ def verify_bundle(b: dict, rpc_url: str = DEFAULT_RPC, trust: list[str] | None =
         m_ok, kind = model_match(b["inference"].get("model", ""), sm["served"] or "")
         model = dict(requested=b["inference"].get("model"), served=sm["served"], provider=sm["provider"], match=m_ok, kind=kind)
     return dict(all_pass=ok, model=model, header=[dict(check=n, ok=o, detail=d) for n, o, d in head], citations=cites,
-                model_call=[dict(check=n, ok=o, detail=d) for n, o, d in inf], owner=as_addr(rpc.call(contract, "owner()")),
+                model_call=[dict(check=n, ok=o, detail=d) for n, o, d in inf],
+                corpus=[dict(check=n, ok=o, detail=d) for n, o, d in cor], owner=as_addr(rpc.call(contract, "owner()")),
                 rpc_calls=rpc.n)
 
 
@@ -365,6 +563,8 @@ def main(argv=None) -> int:
     ap.add_argument("--rpc", default=DEFAULT_RPC)
     ap.add_argument("--trust", nargs="*", help="your own trusted publisher addresses (overrides the contract allowlist)")
     ap.add_argument("--json", action="store_true", help="print machine-readable results")
+    ap.add_argument("--artifacts", help="local dir holding the committed corpus/model files (still sha256-checked); default: fetch from the on-chain URI")
+    ap.add_argument("--no-replay", action="store_true", help="skip the retrieval replay (C5)")
     a = ap.parse_args(argv)
     b = json.load(open(a.bundle, encoding="utf-8"))
     rpc = RPC(a.rpc)
@@ -379,10 +579,13 @@ def main(argv=None) -> int:
     my_trust = {x.lower() for x in a.trust} if a.trust is not None else None
     results = [] if head_fail else [verify_citation(rpc, contract, c, my_trust) for c in b["citations"]]
     inf_checks = verify_inference(rpc, b) if ("inference" in b and not head_fail) else []
-    ok = not head_fail and results and all(r["status"] == "PASS" for r in results) and all(x[1] for x in inf_checks)
+    cor = verify_corpus(rpc, b, not a.no_replay, a.artifacts) if ("retrieval" in b and not head_fail) else []
+    ok = not head_fail and results and all(r["status"] == "PASS" for r in results) and all(x[1] for x in inf_checks) \
+        and all(x[1] is not False for x in cor)
     if a.json:
         print(json.dumps(dict(chain_id=chain, contract=contract, owner=owner, errors=head_fail, results=results,
-                              model_call_checks=[dict(check=n, ok=o, detail=d) for n, o, d in inf_checks], all_pass=bool(ok)), indent=1))
+                              model_call_checks=[dict(check=n, ok=o, detail=d) for n, o, d in inf_checks],
+                              corpus_checks=[dict(check=n, ok=o, detail=d) for n, o, d in cor], all_pass=bool(ok)), indent=1))
     else:
         print(f"Question: {b.get('question')}\nAnswer:   {b.get('answer')}")
         print(f"Chain {chain} via {a.rpc} | contract {contract} | allowlist owner {owner}")
@@ -398,6 +601,11 @@ def main(argv=None) -> int:
             print(f"Model call (InferenceLog {b['inference']['log_contract']}, answer_id {b['inference']['answer_id'][:18]}...):")
             for n, o, d in inf_checks:
                 print(f"  [{'PASS' if o else 'FAIL'}] {n}" + (f"  -- {d}" if d and (not o or n.startswith("M6")) else ""))
+        if cor:
+            r = b["retrieval"]
+            print(f"Corpus (CorpusRegistry {r['corpus_registry']}, v{r['corpus_version']}, root {r['corpus_root'][:18]}...):")
+            for n, o, d in cor:
+                print(f"  [{'PASS' if o else ('SKIP' if o is None else 'FAIL')}] {n}" + (f"  -- {d}" if d else ""))
         print("RESULT:", ("ALL CHECKS PASSED" if inf_checks else "ALL CITATIONS VERIFIED") if ok else "VERIFICATION FAILED", f"({rpc.n} RPC calls)")
     return 0 if ok else 1
 

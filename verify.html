@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Verify an answer bundle · Arc testnet</title>
-<!-- Fonts: Newsreader and IBM Plex (SIL Open Font License 1.1), embedded. Standalone verifier. Everything below is inlined; the only network requests go to https://rpc.testnet.arc.io -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src https://rpc.testnet.arc.io">
+<!-- Fonts: Newsreader and IBM Plex (SIL Open Font License 1.1), embedded. Standalone verifier. Everything below is inlined; the only network requests go to https://rpc.testnet.arc.io and, for the retrieval replay, the committed corpus/model files on https://raw.githubusercontent.com (sha256-checked) -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src https://rpc.testnet.arc.io https://raw.githubusercontent.com">
 <style>
 /* Verifiable RAG: type and colour tokens.
    Fonts are self-hosted, all SIL OFL 1.1 (licenses in ./fonts): Newsreader (answers, title), IBM Plex Sans (UI), IBM Plex Mono (hashes, RPC). */
@@ -107,6 +107,19 @@ h1 span,h1 b+*{color:var(--ink2)}
 .ck.bad i{background:none;border:1.5px solid var(--fail);width:8px;height:8px;margin-top:6.5px}
 .ck.bad{color:var(--fail)}
 .ck .d{color:var(--muted)}
+.ck.skip i{background:none;border:1px dashed var(--muted);width:8px;height:8px;margin-top:6.5px}
+.ck.skip{color:var(--muted)}
+.hint{font:400 12px/1.5 var(--sans);color:var(--muted);margin-top:2px}
+.hint::before{content:"↳ ";color:var(--faint)}
+.hint:empty{display:none}
+.kv.path{grid-template-columns:78px 1fr}
+.rk{display:grid;grid-template-columns:28px minmax(0,1.2fr) minmax(0,.8fr) minmax(0,1fr);gap:0 14px;font:400 12px/1.85 var(--mono);font-variant-numeric:tabular-nums;color:var(--ink);border-top:1px solid var(--rule2);margin-top:4px}
+.rk>span{border-bottom:1px solid var(--rule2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rk .th{font:400 11.5px/2 var(--sans);color:var(--muted)}
+.rk .n,.rk .s{color:var(--muted)}
+.rk .ok{color:var(--seal);font-family:var(--sans)}
+.rk .bad{color:var(--fail);font-family:var(--sans);font-weight:500}
+.more{font:400 12px var(--sans);color:var(--muted);margin-top:6px}
 .ev{margin:0 0 14px}
 .ev .hd{display:flex;align-items:baseline;gap:10px;color:var(--ink2);font-size:13px;margin-bottom:3px}
 .verdict{margin-left:auto;font:500 12px var(--sans);white-space:nowrap}
@@ -161,13 +174,130 @@ h1 span,h1 b+*{color:var(--ink2)}
 <div class="wrap">
   <div class="top"><h1><b>Verify</b> an answer</h1></div>
   <div class="zone" id="zone">Drop an answer bundle (.json) here, or click to choose a file
-    <div class="how" style="margin-top:8px">runs entirely in this page · talks only to rpc.testnet.arc.io</div></div>
+    <div class="how" style="margin-top:8px">runs entirely in this page · talks only to rpc.testnet.arc.io · replay files from raw.githubusercontent.com, hash-checked</div></div>
   <div id="thread" style="margin-top:48px"></div>
 </div>
 <div class="drop" id="drop">Drop to verify</div>
 <script>
 /*! @noble/hashes v1.8.0 (MIT) - https://github.com/paulmillr/noble-hashes - keccak_256 + sha256 only, bundled with esbuild into globalThis.nobleHashes. Vendored locally: no CDN. */
 (()=>{var H=(e,t)=>()=>(e&&(t=e(e=0)),t);var nt=(e,t)=>()=>(t||e((t={exports:{}}).exports,t),t.exports);function ot(e,t=!1){return t?{h:Number(e&L),l:Number(e>>G&L)}:{h:Number(e>>G&L)|0,l:Number(e&L)|0}}function V(e,t=!1){let s=e.length,o=new Uint32Array(s),r=new Uint32Array(s);for(let i=0;i<s;i++){let{h:n,l:c}=ot(e[i],t);[o[i],r[i]]=[n,c]}return[o,r]}var L,G,M,W,X,j,N=H(()=>{L=BigInt(4294967295),G=BigInt(32);M=(e,t,s)=>e<<s|t>>>32-s,W=(e,t,s)=>t<<s|e>>>32-s,X=(e,t,s)=>t<<s-32|e>>>64-s,j=(e,t,s)=>e<<s-32|t>>>64-s});function rt(e){return e instanceof Uint8Array||ArrayBuffer.isView(e)&&e.constructor.name==="Uint8Array"}function F(e){if(!Number.isSafeInteger(e)||e<0)throw new Error("positive integer expected, got "+e)}function y(e,...t){if(!rt(e))throw new Error("Uint8Array expected");if(t.length>0&&!t.includes(e.length))throw new Error("Uint8Array expected of length "+t+", got length="+e.length)}function A(e,t=!0){if(e.destroyed)throw new Error("Hash instance has been destroyed");if(t&&e.finished)throw new Error("Hash#digest() has already been called")}function _(e,t){y(e);let s=t.outputLen;if(e.length<s)throw new Error("digestInto() expects output buffer of length at least "+s)}function R(e){return new Uint32Array(e.buffer,e.byteOffset,Math.floor(e.byteLength/4))}function b(...e){for(let t=0;t<e.length;t++)e[t].fill(0)}function I(e){return new DataView(e.buffer,e.byteOffset,e.byteLength)}function d(e,t){return e<<32-t|e>>>t}function ct(e){return e<<24&4278190080|e<<8&16711680|e>>>8&65280|e>>>24&255}function ht(e){for(let t=0;t<e.length;t++)e[t]=ct(e[t]);return e}function ft(e){if(typeof e!="string")throw new Error("string expected");return new Uint8Array(new TextEncoder().encode(e))}function B(e){return typeof e=="string"&&(e=ft(e)),y(e),e}function S(e){let t=o=>e().update(B(o)).digest(),s=e();return t.outputLen=s.outputLen,t.blockLen=s.blockLen,t.create=()=>e(),t}var it,O,w,k=H(()=>{/*! noble-hashes - MIT License (c) 2022 Paul Miller (paulmillr.com) */it=new Uint8Array(new Uint32Array([287454020]).buffer)[0]===68;O=it?e=>e:ht;w=class{}});function gt(e,t=24){let s=new Uint32Array(10);for(let o=24-t;o<24;o++){for(let n=0;n<10;n++)s[n]=e[n]^e[n+10]^e[n+20]^e[n+30]^e[n+40];for(let n=0;n<10;n+=2){let c=(n+8)%10,f=(n+2)%10,a=s[f],x=s[f+1],h=K(a,x,1)^s[c],g=P(a,x,1)^s[c+1];for(let u=0;u<50;u+=10)e[n+u]^=h,e[n+u+1]^=g}let r=e[2],i=e[3];for(let n=0;n<24;n++){let c=q[n],f=K(r,i,c),a=P(r,i,c),x=J[n];r=e[x],i=e[x+1],e[x]=f,e[x+1]=a}for(let n=0;n<50;n+=10){for(let c=0;c<10;c++)s[c]=e[n+c];for(let c=0;c<10;c++)e[n+c]^=~s[(c+2)%10]&s[(c+4)%10]}e[0]^=bt[o],e[1]^=pt[o]}b(s)}var at,m,xt,ut,dt,lt,J,q,z,Q,bt,pt,K,P,C,yt,Y,Z=H(()=>{N();k();at=BigInt(0),m=BigInt(1),xt=BigInt(2),ut=BigInt(7),dt=BigInt(256),lt=BigInt(113),J=[],q=[],z=[];for(let e=0,t=m,s=1,o=0;e<24;e++){[s,o]=[o,(2*s+3*o)%5],J.push(2*(5*o+s)),q.push((e+1)*(e+2)/2%64);let r=at;for(let i=0;i<7;i++)t=(t<<m^(t>>ut)*lt)%dt,t&xt&&(r^=m<<(m<<BigInt(i))-m);z.push(r)}Q=V(z,!0),bt=Q[0],pt=Q[1],K=(e,t,s)=>s>32?X(e,t,s):M(e,t,s),P=(e,t,s)=>s>32?j(e,t,s):W(e,t,s);C=class e extends w{constructor(t,s,o,r=!1,i=24){if(super(),this.pos=0,this.posOut=0,this.finished=!1,this.destroyed=!1,this.enableXOF=!1,this.blockLen=t,this.suffix=s,this.outputLen=o,this.enableXOF=r,this.rounds=i,F(o),!(0<t&&t<200))throw new Error("only keccak-f1600 function is supported");this.state=new Uint8Array(200),this.state32=R(this.state)}clone(){return this._cloneInto()}keccak(){O(this.state32),gt(this.state32,this.rounds),O(this.state32),this.posOut=0,this.pos=0}update(t){A(this),t=B(t),y(t);let{blockLen:s,state:o}=this,r=t.length;for(let i=0;i<r;){let n=Math.min(s-this.pos,r-i);for(let c=0;c<n;c++)o[this.pos++]^=t[i++];this.pos===s&&this.keccak()}return this}finish(){if(this.finished)return;this.finished=!0;let{state:t,suffix:s,pos:o,blockLen:r}=this;t[o]^=s,(s&128)!==0&&o===r-1&&this.keccak(),t[r-1]^=128,this.keccak()}writeInto(t){A(this,!1),y(t),this.finish();let s=this.state,{blockLen:o}=this;for(let r=0,i=t.length;r<i;){this.posOut>=o&&this.keccak();let n=Math.min(o-this.posOut,i-r);t.set(s.subarray(this.posOut,this.posOut+n),r),this.posOut+=n,r+=n}return t}xofInto(t){if(!this.enableXOF)throw new Error("XOF is not possible for this instance");return this.writeInto(t)}xof(t){return F(t),this.xofInto(new Uint8Array(t))}digestInto(t){if(_(t,this),this.finished)throw new Error("digest() was already called");return this.writeInto(t),this.destroy(),t}digest(){return this.digestInto(new Uint8Array(this.outputLen))}destroy(){this.destroyed=!0,b(this.state)}_cloneInto(t){let{blockLen:s,suffix:o,outputLen:r,rounds:i,enableXOF:n}=this;return t||(t=new e(s,o,r,n,i)),t.state32.set(this.state32),t.pos=this.pos,t.posOut=this.posOut,t.finished=this.finished,t.rounds=i,t.suffix=o,t.outputLen=r,t.enableXOF=n,t.destroyed=this.destroyed,t}},yt=(e,t,s)=>S(()=>new C(t,e,s)),Y=yt(1,136,256/8)});function wt(e,t,s,o){if(typeof e.setBigUint64=="function")return e.setBigUint64(t,s,o);let r=BigInt(32),i=BigInt(4294967295),n=Number(s>>r&i),c=Number(s&i),f=o?4:0,a=o?0:4;e.setUint32(t+f,n,o),e.setUint32(t+a,c,o)}function $(e,t,s){return e&t^~e&s}function v(e,t,s){return e&t^e&s^t&s}var U,l,tt=H(()=>{k();U=class extends w{constructor(t,s,o,r){super(),this.finished=!1,this.length=0,this.pos=0,this.destroyed=!1,this.blockLen=t,this.outputLen=s,this.padOffset=o,this.isLE=r,this.buffer=new Uint8Array(t),this.view=I(this.buffer)}update(t){A(this),t=B(t),y(t);let{view:s,buffer:o,blockLen:r}=this,i=t.length;for(let n=0;n<i;){let c=Math.min(r-this.pos,i-n);if(c===r){let f=I(t);for(;r<=i-n;n+=r)this.process(f,n);continue}o.set(t.subarray(n,n+c),this.pos),this.pos+=c,n+=c,this.pos===r&&(this.process(s,0),this.pos=0)}return this.length+=t.length,this.roundClean(),this}digestInto(t){A(this),_(t,this),this.finished=!0;let{buffer:s,view:o,blockLen:r,isLE:i}=this,{pos:n}=this;s[n++]=128,b(this.buffer.subarray(n)),this.padOffset>r-n&&(this.process(o,0),n=0);for(let h=n;h<r;h++)s[h]=0;wt(o,r-8,BigInt(this.length*8),i),this.process(o,0);let c=I(t),f=this.outputLen;if(f%4)throw new Error("_sha2: outputLen should be aligned to 32bit");let a=f/4,x=this.get();if(a>x.length)throw new Error("_sha2: outputLen bigger than state");for(let h=0;h<a;h++)c.setUint32(4*h,x[h],i)}digest(){let{buffer:t,outputLen:s}=this;this.digestInto(t);let o=t.slice(0,s);return this.destroy(),o}_cloneInto(t){t||(t=new this.constructor),t.set(...this.get());let{blockLen:s,buffer:o,length:r,finished:i,destroyed:n,pos:c}=this;return t.destroyed=n,t.finished=i,t.length=r,t.pos=c,r%s&&t.buffer.set(o),t}clone(){return this._cloneInto()}},l=Uint32Array.from([1779033703,3144134277,1013904242,2773480762,1359893119,2600822924,528734635,1541459225])});var At,p,D,et,st=H(()=>{tt();k();At=Uint32Array.from([1116352408,1899447441,3049323471,3921009573,961987163,1508970993,2453635748,2870763221,3624381080,310598401,607225278,1426881987,1925078388,2162078206,2614888103,3248222580,3835390401,4022224774,264347078,604807628,770255983,1249150122,1555081692,1996064986,2554220882,2821834349,2952996808,3210313671,3336571891,3584528711,113926993,338241895,666307205,773529912,1294757372,1396182291,1695183700,1986661051,2177026350,2456956037,2730485921,2820302411,3259730800,3345764771,3516065817,3600352804,4094571909,275423344,430227734,506948616,659060556,883997877,958139571,1322822218,1537002063,1747873779,1955562222,2024104815,2227730452,2361852424,2428436474,2756734187,3204031479,3329325298]),p=new Uint32Array(64),D=class extends U{constructor(t=32){super(64,t,8,!1),this.A=l[0]|0,this.B=l[1]|0,this.C=l[2]|0,this.D=l[3]|0,this.E=l[4]|0,this.F=l[5]|0,this.G=l[6]|0,this.H=l[7]|0}get(){let{A:t,B:s,C:o,D:r,E:i,F:n,G:c,H:f}=this;return[t,s,o,r,i,n,c,f]}set(t,s,o,r,i,n,c,f){this.A=t|0,this.B=s|0,this.C=o|0,this.D=r|0,this.E=i|0,this.F=n|0,this.G=c|0,this.H=f|0}process(t,s){for(let h=0;h<16;h++,s+=4)p[h]=t.getUint32(s,!1);for(let h=16;h<64;h++){let g=p[h-15],u=p[h-2],T=d(g,7)^d(g,18)^g>>>3,E=d(u,17)^d(u,19)^u>>>10;p[h]=E+p[h-7]+T+p[h-16]|0}let{A:o,B:r,C:i,D:n,E:c,F:f,G:a,H:x}=this;for(let h=0;h<64;h++){let g=d(c,6)^d(c,11)^d(c,25),u=x+g+$(c,f,a)+At[h]+p[h]|0,E=(d(o,2)^d(o,13)^d(o,22))+v(o,r,i)|0;x=a,a=f,f=c,c=n+u|0,n=i,i=r,r=o,o=u+E|0}o=o+this.A|0,r=r+this.B|0,i=i+this.C|0,n=n+this.D|0,c=c+this.E|0,f=f+this.F|0,a=a+this.G|0,x=x+this.H|0,this.set(o,r,i,n,c,f,a,x)}roundClean(){b(p)}destroy(){this.set(0,0,0,0,0,0,0,0),b(this.buffer)}},et=S(()=>new D)});var Ht=nt(()=>{Z();st();globalThis.nobleHashes={keccak_256:Y,sha256:et}});Ht();})();
+
+</script>
+<script>
+/* ArcReplay: independent JS implementation of the committed retriever (retrieval_v1.py, "hybrid-v1")
+   plus the corpus Merkle tree. Used to replay retrieval in the browser: given the committed corpus,
+   model weights and config (all hash-checked), it recomputes the ranked candidates for a question.
+   Deterministic: float64 throughout, orderings on scores quantised to 1e-9, ties by leaf index. */
+(function (G) {
+  "use strict";
+  const N = () => G.nobleHashes;
+  const toHex = (u8) => Array.from(u8, (x) => x.toString(16).padStart(2, "0")).join("");
+  const fromHex = (h) => { h = h.replace(/^0x/, ""); const o = new Uint8Array(h.length / 2); for (let i = 0; i < o.length; i++) o[i] = parseInt(h.substr(2 * i, 2), 16); return o; };
+
+  // ---------- Merkle: leaf = sha256(0x00||passageHash), node = sha256(0x01||l||r), odd node promoted ----------
+  const H = (tag, ...parts) => { const n = 1 + parts.reduce((s, p) => s + p.length, 0), b = new Uint8Array(n); b[0] = tag; let o = 1; for (const p of parts) { b.set(p, o); o += p.length; } return N().sha256(b); };
+  const leaf = (hashHex) => H(0, fromHex(hashHex));
+  function merkleRoot(hashesHex) {
+    let cur = hashesHex.map(leaf);
+    while (cur.length > 1) { const nx = []; for (let i = 0; i < cur.length; i += 2) nx.push(i + 1 < cur.length ? H(1, cur[i], cur[i + 1]) : cur[i]); cur = nx; }
+    return "0x" + toHex(cur[0]);
+  }
+  // returns the list of intermediate steps so the UI can show the path; .ok tells if it reaches `root`
+  function merkleVerify(hashHex, index, leafCount, path, root) {
+    const steps = []; if (!(index >= 0 && index < leafCount)) return { ok: false, steps };
+    let h = leaf(hashHex), n = leafCount, p = 0, i = index;
+    steps.push({ op: "leaf", value: "0x" + toHex(h) });
+    try {
+      while (n > 1) {
+        if (i % 2 === 1) { h = H(1, fromHex(path[p]), h); steps.push({ op: "L", sib: path[p], value: "0x" + toHex(h) }); p++; }
+        else if (i + 1 < n) { h = H(1, h, fromHex(path[p])); steps.push({ op: "R", sib: path[p], value: "0x" + toHex(h) }); p++; }
+        else steps.push({ op: "up", value: "0x" + toHex(h) });
+        i = Math.floor(i / 2); n = Math.ceil(n / 2);
+      }
+    } catch (e) { return { ok: false, steps }; }
+    if (path.some((x) => typeof x !== "string" || !/^0x[0-9a-f]{64}$/i.test(x))) return { ok: false, steps };
+    return { ok: p === path.length && "0x" + toHex(h) === String(root).toLowerCase(), steps };
+  }
+
+  // ---------- tokenizers ----------
+  const RE_C = /\p{C}/u, RE_MN = /\p{Mn}/u, RE_P = /\p{P}/u, RE_WS = /\s/u;
+  const cjk = (cp) => (cp >= 0x4E00 && cp <= 0x9FFF) || (cp >= 0x3400 && cp <= 0x4DBF) || (cp >= 0x20000 && cp <= 0x2A6DF) || (cp >= 0x2A700 && cp <= 0x2B73F)
+    || (cp >= 0x2B740 && cp <= 0x2B81F) || (cp >= 0x2B820 && cp <= 0x2CEAF) || (cp >= 0xF900 && cp <= 0xFAFF) || (cp >= 0x2F800 && cp <= 0x2FA1F);
+  const bm25Tokens = (s, stop) => (s.toLowerCase().match(/[a-z0-9]+/g) || []).filter((w) => !stop.has(w));
+  function bertWords(text) {
+    let o = "";
+    for (const ch of text) { const cp = ch.codePointAt(0);
+      if (cp === 0 || cp === 0xFFFD || (!"\t\n\r".includes(ch) && RE_C.test(ch))) continue;
+      if (RE_WS.test(ch)) o += " "; else if (cjk(cp)) o += " " + ch + " "; else o += ch; }
+    let s = ""; for (const ch of o.normalize("NFD")) if (!RE_MN.test(ch)) s += ch;
+    s = s.toLowerCase();
+    const words = []; let cur = "";
+    for (const ch of s) { const cp = ch.codePointAt(0);
+      if (RE_WS.test(ch)) { if (cur) { words.push(cur); cur = ""; } }
+      else if ((cp >= 33 && cp <= 126 && !/[A-Za-z0-9]/.test(ch)) || RE_P.test(ch)) { if (cur) { words.push(cur); cur = ""; } words.push(ch); }
+      else cur += ch; }
+    if (cur) words.push(cur);
+    return words;
+  }
+  function wordpieceIds(text, vocab, maxTokens) {
+    const unk = vocab.get("[UNK]"), ids = [];
+    for (const w of bertWords(text)) {
+      const cs = Array.from(w);
+      if (cs.length > 100) { ids.push(unk); continue; }
+      let start = 0, pieces = [];
+      while (start < cs.length) {
+        let end = cs.length, cur;
+        while (start < end) { const sub = (start ? "##" : "") + cs.slice(start, end).join(""); if (vocab.has(sub)) { cur = vocab.get(sub); break; } end--; }
+        if (cur === undefined) { pieces = [unk]; break; }
+        pieces.push(cur); start = end;
+      }
+      ids.push(...pieces);
+    }
+    return ids.slice(0, maxTokens).filter((i) => i !== unk);
+  }
+
+  // ---------- model ----------
+  function parseSafetensors(buf) {
+    const dv = new DataView(buf), n = dv.getUint32(0, true) + dv.getUint32(4, true) * 2 ** 32;
+    const meta = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 8, n))).embeddings;
+    if (meta.dtype !== "F32") throw new Error("weights are not F32");
+    const [a, b] = meta.data_offsets, data = new Float32Array(buf.slice(8 + n + a, 8 + n + b));
+    return { W: data, rows: meta.shape[0], dim: meta.shape[1] };
+  }
+
+  // ---------- retriever ----------
+  const q9 = (x) => Math.round(x * 1e9);
+  const top = (sc, n) => sc.map((_, i) => i).sort((i, j) => q9(sc[j]) - q9(sc[i]) || i - j).slice(0, n);
+  function buildIndex(cfg, docs, tokenizerJson, weightsBuf) {
+    const vocab = new Map(Object.entries(tokenizerJson.model.vocab)), M = parseSafetensors(weightsBuf);
+    const stop = new Set(cfg.bm25.stopwords), maxT = cfg.dense.max_tokens;
+    const embed = (text) => { const acc = new Float64Array(M.dim);
+      for (const id of wordpieceIds(text, vocab, maxT)) { const o = id * M.dim; for (let j = 0; j < M.dim; j++) acc[j] += M.W[o + j]; }
+      let s = 0; for (let j = 0; j < M.dim; j++) s += acc[j] * acc[j]; const nrm = Math.sqrt(s);
+      if (nrm > 0) for (let j = 0; j < M.dim; j++) acc[j] = acc[j] / nrm; return acc; };
+    const tf = [], df = new Map(), dl = [];
+    for (const d of docs) { const t = bm25Tokens(d.text, stop), m = new Map(); for (const w of t) m.set(w, (m.get(w) || 0) + 1);
+      for (const w of m.keys()) df.set(w, (df.get(w) || 0) + 1); tf.push(m); dl.push(t.length); }
+    const Nd = docs.length, avgdl = dl.reduce((a, b) => a + b, 0) / Nd;
+    return { cfg, docs, stop, embed, tf, df, dl, N: Nd, avgdl, E: docs.map((d) => embed(d.text)) };
+  }
+  function rank(ix, query) {
+    const { k1, b } = ix.cfg.bm25, fu = ix.cfg.fusion, q = bm25Tokens(query, ix.stop), idf = new Map();
+    for (const w of new Set(q)) if (ix.df.has(w)) { const n = ix.df.get(w); idf.set(w, Math.log(1 + (ix.N - n + 0.5) / (n + 0.5))); }
+    const bm = new Array(ix.N);
+    for (let i = 0; i < ix.N; i++) { let s = 0; const tf = ix.tf[i], norm = k1 * (1 - b + b * ix.dl[i] / ix.avgdl);
+      for (const w of q) { const f = tf.get(w) || 0; if (f) s += idf.get(w) * f * (k1 + 1) / (f + norm); } bm[i] = s; }
+    const qv = ix.embed(query), dn = ix.E.map((e) => { let s = 0; for (let j = 0; j < e.length; j++) s += e[j] * qv[j]; return s; });
+    const B = top(bm, fu.list_depth), D = top(dn, fu.list_depth), rb = new Map(), rd = new Map(), sc = new Map();
+    B.forEach((d, r) => rb.set(d, r + 1)); D.forEach((d, r) => rd.set(d, r + 1));
+    for (const d of B) sc.set(d, 1 / (fu.k + rb.get(d)));
+    for (const d of D) sc.set(d, (sc.get(d) || 0) + 1 / (fu.k + rd.get(d)));
+    const order = [...sc.keys()].sort((x, y) => sc.get(y) - sc.get(x) || x - y).slice(0, fu.pool);
+    return order.map((d) => ({ id: ix.docs[d].hash, rrf: sc.get(d), bm25: rb.has(d) ? rb.get(d) : null, dense: rd.has(d) ? rd.get(d) : null }));
+  }
+
+  G.ArcReplay = { merkleRoot, merkleVerify, bertWords, wordpieceIds, buildIndex, rank, parseSafetensors };
+})(globalThis);
 
 </script>
 <script>
@@ -201,12 +331,15 @@ h1 span,h1 b+*{color:var(--ink2)}
     "registerSource(bytes32,string,string)": "", "isLogger(address)": "(bool)",
     "getRecord(bytes32)": "(bytes32,bytes32,bytes32,bytes32,bytes32,address,uint16,uint64,uint64,uint64,uint64)",
     "commit(bytes32,bytes32,bytes32,bytes32,bytes32,uint16)": "", "finalize(bytes32,bytes32)": "",
+    "corpusInfo(uint256)": "(bytes32,bytes32,uint32,address,uint64,uint64)", "corpusUri(uint256)": "(string)",
+    "isPublisher(address)": "(bool)", "areVerified(bytes32[])": "(bool[])",
   };
   const SEL = {}; for (const s in SIGS) SEL[s] = keccakHex(s).slice(0, 8);
   const SEL2SIG = {}; for (const s in SEL) SEL2SIG[SEL[s]] = s;
   const EVENTS = {
     BATCH: "BatchRegistered(address,uint256,uint256,uint256)", SINGLE: "SourceRegistered(bytes32,string,address,uint256)",
     COMMITTED: "Committed(bytes32,bytes32,bytes32,bytes32,bytes32,uint16,address,uint256)", FINALIZED: "Finalized(bytes32,bytes32,address,uint256)",
+    PUBLISHED: "CorpusPublished(uint256,bytes32,bytes32,uint32,string,address)",
   };
   const TOPIC = {}; for (const k in EVENTS) TOPIC[k] = "0x" + keccakHex(EVENTS[k]);
 
@@ -298,7 +431,8 @@ h1 span,h1 b+*{color:var(--ink2)}
       const d = params[0].data.replace(/^0x/, ""), sig = SEL2SIG[d.slice(0, 8)], arg = d.slice(8);
       if (!sig) return `cast call ${params[0].to} ${params[0].data}${R}`;
       let a = "";
-      if (arg) a = sig.includes("(address)") ? " 0x" + arg.slice(24) : " 0x" + arg;
+      if (arg) a = sig.includes("(address)") ? " 0x" + arg.slice(24) : sig.includes("(uint256)") ? " " + BigInt("0x" + arg).toString()
+        : sig.includes("[]") ? ` "[${(arg.slice(128).match(/.{64}/g) || []).map((x) => "0x" + x).join(",")}]"` : " 0x" + arg;
       return `cast call ${params[0].to} "${sig}${SIGS[sig]}"${a}${R}`;
     }
     return `cast rpc ${method} '${JSON.stringify(params)}'${R}`;
@@ -477,9 +611,102 @@ h1 span,h1 b+*{color:var(--ink2)}
       const [m, kind] = modelMatch(b.inference.model || "", sm.served || "");
       model = { requested: b.inference.model ?? null, served: sm.served, provider: sm.provider, match: m, kind };
     }
+    // corpus / retrieval (C checks)
+    const cor = b.retrieval ? await verifyCorpus() : [];
+    async function verifyCorpus() {
+      const R = b.retrieval, out = [], reg = R.corpus_registry, ver = Number(R.corpus_version);
+      const chk = (check, ok, detail = "") => { out.push({ check, ok: ok === null ? null : !!ok, detail, tag: "corpus" }); return !!ok; };
+      tag = "corpus"; const u256 = ver.toString(16).padStart(64, "0");
+      if (!chk("C1 CorpusRegistry has code", !["0x", "0x0"].includes(await rpc("eth_getCode", [reg, "latest"])), reg)) return out;
+      const info = await call(reg, "corpusInfo(uint256)", u256);
+      const root = "0x" + toHex(word(info, 0)), cfgHash = "0x" + toHex(word(info, 1)), leaves = Number(asInt(word(info, 2))), publisher = asAddr(word(info, 3));
+      cmp("corpus root on-chain vs bundle", R.corpus_root.toLowerCase(), root);
+      chk("C1 on-chain corpus version matches the bundle (root, leaf count, config hash)",
+        root === R.corpus_root.toLowerCase() && leaves === Number(R.leaf_count) && cfgHash === R.config_hash.toLowerCase(), `v${ver} · ${leaves} leaves`);
+      chk("C1 corpus published by an authorized publisher", asInt(await call(reg, "isPublisher(address)", padAddr(publisher))) === 1n, publisher);
+      const rc = await rpc("eth_getTransactionReceipt", [R.publish_tx]);
+      chk("C1 publish tx emitted CorpusPublished(version, root)", !!rc && parseInt(rc.status, 16) === 1 && rc.logs.some((l) =>
+        l.address.toLowerCase() === reg.toLowerCase() && l.topics[0] === TOPIC.PUBLISHED && BigInt(l.topics[1]) === BigInt(ver) && l.topics[2] === root), R.publish_tx);
+      const ch = await shaStr(R.config_json);
+      cmp("sha256(retrieval config) vs on-chain configHash", ch, cfgHash, { cmd: "jq -j .retrieval.config_json bundle.json | sha256sum" });
+      chk("C2 sha256(retrieval config) == on-chain configHash", ch === cfgHash, `recomputed ${ch.slice(0, 18)}...`);
+      const cfg = JSON.parse(R.config_json), ranked = JSON.parse(R.ranked_json), rh = await shaStr(R.ranked_json);
+      let body = {}; try { body = b.inference ? JSON.parse(b.inference.request_body) : {}; } catch (e) {}
+      const sysmsg = ((body.messages || []).find((m) => m.role === "system") || {}).content || "";
+      const inReq = (/retrieval=(0x[0-9a-f]{64})/.exec(sysmsg) || [])[1] || "(absent)";
+      cmp("sha256(ranked list) vs hash inside the hashed request", rh, inReq, { cmd: "jq -j .retrieval.ranked_json bundle.json | sha256sum" });
+      chk("C2 corpus, config and ranked-list hashes are inside the hashed request",
+        sysmsg.includes(`corpus=v${ver}:${root}`) && sysmsg.includes(`retrieval_config=${cfgHash}`) && sysmsg.includes(`retrieval=${rh}`), `sha256(ranked list) ${rh.slice(0, 18)}...`);
+      const proofs = R.proofs || [], RP = G.ArcReplay;
+      const pv = ranked.map((x, r) => r < proofs.length ? RP.merkleVerify(x.id, Number(proofs[r].leaf_index), leaves, proofs[r].path, root) : { ok: false, steps: [] });
+      const bad = pv.findIndex((x) => !x.ok);
+      chk("C3 every ranked candidate has a valid inclusion proof against the on-chain root", bad < 0,
+        bad < 0 ? `${ranked.length} of ${ranked.length} proofs valid` : `candidate #${bad + 1} ${ranked[bad].id.slice(0, 12)}... is not in the committed corpus`);
+      const ids = ranked.map((x) => x.id), prompt = ((b.inference || {}).passages || []).map((p) => p.content_hash.toLowerCase());
+      // show one proof path: the first cited passage (else the first failing / first candidate)
+      const c0 = (b.citations || [])[0], show = bad >= 0 ? bad : Math.max(0, c0 ? ids.indexOf(c0.content_hash.toLowerCase()) : 0);
+      if (ranked.length) ev("corpus", { kind: "proof", label: (c0 && bad < 0 ? `inclusion proof for ${c0.id}` : `inclusion proof for candidate #${show + 1}`),
+        id: ids[show], index: proofs[show] ? proofs[show].leaf_index : null, leaves, root, ...pv[show] });
+      chk("C3 every prompt passage is a ranked candidate", prompt.every((h) => ids.includes(h)), `${prompt.length} prompt passages`);
+      const vb = await call(contract, "areVerified(bytes32[])", (32).toString(16).padStart(64, "0") + ids.length.toString(16).padStart(64, "0") + ids.map((h) => h.slice(2).toLowerCase()).join(""));
+      const off = Number(asInt(word(vb, 0))), n = Number(asInt(vb.slice(off, off + 32))), vnow = [];
+      for (let i = 0; i < n; i++) vnow.push(asInt(vb.slice(off + 32 + 32 * i, off + 64 + 32 * i)) === 1n);
+      const want = ids.filter((h, i) => vnow[i]).slice(0, Number(cfg.selection.prompt_k));
+      chk("C4 prompt = the first k verified candidates in rank order (none skipped)", JSON.stringify(want) === JSON.stringify(prompt),
+        `${vnow.filter(Boolean).length} of ${ids.length} candidates verified on SourceRegistry`);
+      if (opts.replay === false) { chk("C5 replay of the committed retrieval", null, "skipped (--no-replay)"); return out; }
+      const ub = await call(reg, "corpusUri(uint256)", u256), uri = dynString(ub, Number(asInt(word(ub, 0))));
+      let arts;
+      try { arts = await loadArtifacts(cfg, uri, opts); } catch (e) { chk("C5 replay of the committed retrieval", null, `not run: ${e.name || "Error"}`); ev("corpus", { kind: "replay", error: String(e.message || e), uri }); return out; }
+      const names = arts.filter((a) => !a.ok).map((a) => a.name);
+      if (!chk("C5 fetched corpus, retriever code, weights and tokenizer match the committed config", !names.length,
+        !names.length ? "sha256 match" : `${names[0]} sha256 differs from the committed config`)) { ev("corpus", { kind: "replay", arts, uri }); return out; }
+      const A = Object.fromEntries(arts.map((a) => [a.name, a.data])), t0 = performance.now();
+      const key = cfgHash; let ix = IDX.get(key), rows;
+      if (!ix) { rows = new TextDecoder().decode(A.corpus).split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l)); }
+      else rows = ix.docs;
+      const froot = RP.merkleRoot(rows.map((r) => r.hash));
+      chk("C5 Merkle root of the fetched corpus == on-chain root", froot === root && rows.length === leaves, `${rows.length} passages`);
+      if (!ix) { const wb = A["model weights"]; ix = RP.buildIndex(cfg, rows, JSON.parse(new TextDecoder().decode(A.tokenizer)), wb.buffer.slice(wb.byteOffset, wb.byteOffset + wb.byteLength)); IDX.set(key, ix); }
+      const q = R.query ?? b.question ?? "", rep = RP.rank(ix, q), d = replayDiff(ranked, rep);
+      chk("C5 replaying the committed retriever gives the same ranked candidates", !d, !d ? `${rep.length} candidates, identical ids and order` : d);
+      chk("C5 replay query == bundle question", (R.query ?? b.question) === b.question);
+      ev("corpus", { kind: "replay", arts: arts.map(({ data, ...a }) => a), uri, froot, ms: Math.round(performance.now() - t0), ok: !d, diff: d,
+        rows: rep.map((x, i) => ({ rank: i + 1, id: x.id, replay: x, committed: ranked[i] || null, same: !!ranked[i] && ranked[i].id === x.id })),
+        missing: rep.filter((x) => !ids.includes(x.id)).map((x) => x.id) });
+      return out;
+    }
+
     tag = "net";
+    const okAll = ok && cor.every((x) => x.ok !== false);
     const owner = asAddr(await call(contract, "owner()"));
-    return { all_pass: ok, model, header: head, citations: cites, model_call: inf, owner, rpc_calls: calls.length, rpc: rpcUrl, evidence, calls };
+    return { all_pass: okAll, model, header: head, citations: cites, model_call: inf, corpus: cor, owner, rpc_calls: calls.length, rpc: rpcUrl, evidence, calls };
+  }
+
+  // ---------- committed artifacts (fetched from the on-chain URI, sha256-checked; cached per page) ----------
+  const ART = new Map(), IDX = new Map();
+  async function loadArtifacts(cfg, configUrl, opts) {
+    const list = [["corpus", cfg.corpus], ["retriever code", cfg.retriever_code], ["model weights", cfg.model.weights], ["tokenizer", cfg.model.tokenizer]];
+    return Promise.all(list.map(async ([name, a]) => {
+      const url = new URL(a.path, configUrl).href;
+      let data = ART.get(a.sha256);
+      if (!data) {
+        if (opts.onStatus) opts.onStatus(`fetching ${name}`);
+        data = opts.loadArtifact ? await opts.loadArtifact(a.path) : new Uint8Array(await (await fetch(url, { cache: "force-cache" })).arrayBuffer());
+      }
+      const h = await sha256(data), ok = h === a.sha256;
+      if (ok) ART.set(a.sha256, data);
+      return { name, url, sha256: h, expected: a.sha256, ok, bytes: data.length, data };
+    }));
+  }
+  function replayDiff(committed, replayed) {
+    const cids = committed.map((x) => x.id);
+    for (let r = 0; r < replayed.length; r++) if (!cids.includes(replayed[r].id)) return `replay ranks ${replayed[r].id.slice(0, 12)}... at #${r + 1}, but the answer's list omits it`;
+    for (let r = 0; r < Math.min(replayed.length, committed.length); r++) { const a = replayed[r], c = committed[r];
+      if (a.id !== c.id) return `rank #${r + 1} differs: replay ${a.id.slice(0, 12)}..., answer ${c.id.slice(0, 12)}...`;
+      if (nn(a.bm25) !== nn(c.bm25) || nn(a.dense) !== nn(c.dense) || Math.abs(a.rrf - Number(c.rrf || 0)) > 1e-9) return `rank #${r + 1} scores differ`; }
+    if (replayed.length !== committed.length) return `replay returns ${replayed.length} candidates, the answer lists ${committed.length}`;
+    return "";
   }
 
   // demo tampering (client-side, on a copy)
@@ -491,6 +718,8 @@ h1 span,h1 b+*{color:var(--ink2)}
     else if (mode === "model") { const raw = new TextDecoder().decode(b64bytes(t.inference.response_body_b64))
         .replace(/"model":"[^"]*"/, '"model":"meta-llama/llama-3.1-8b-instruct"');
       let bin = ""; enc.encode(raw).forEach((x) => (bin += String.fromCharCode(x))); t.inference.response_body_b64 = btoa(bin); t._t = "served model"; }
+    else if (mode === "hide" && t.retrieval) { const r = JSON.parse(t.retrieval.ranked_json), i = 0;
+      t._t = `ranking (hid #${i + 1})`; r.splice(i, 1); t.retrieval.proofs.splice(i, 1); t.retrieval.ranked_json = canonical(r); }
     else { t.inference.request_body = t.inference.request_body.replace("[P1] ", "[P1] Note: "); t._t = "the prompt"; }
     return t;
   }
@@ -532,7 +761,7 @@ h1 span,h1 b+*{color:var(--ink2)}
     body.innerHTML = `<p class="a ${idk ? "idk" : ""}">${esc(b.answer)}</p>
       <div class="bar">${(b.citations || []).map((c, i) => `<span class="cite" data-i="${i}">${esc(c.id)}</span>`).join("")}
         <span class="sp"></span>
-        ${b.inference ? `<span class="menu"><span data-m="char">passage</span><span data-m="answer">answer</span><span data-m="prompt">prompt</span><span data-m="model">model</span></span>
+        ${b.inference ? `<span class="menu"><span data-m="char">passage</span><span data-m="answer">answer</span><span data-m="prompt">prompt</span><span data-m="model">model</span>${b.retrieval ? `<span data-m="hide">hide a document</span>` : ""}</span>
         <button class="icon" data-a="tamper" title="Tamper with a copy, then verify it">tamper</button>` : ""}
         ${opt.download === false ? "" : `<button class="icon" data-a="dl" title="Download bundle" aria-label="Download bundle">${DL}</button>`}
         <button class="btn" data-a="verify">Verify</button></div>
@@ -558,12 +787,23 @@ h1 span,h1 b+*{color:var(--ink2)}
     return (rs && rs[0]) || "source check failed"; }
   const allOk = (a) => a.every((x) => x.ok);
   const firstBad = (a) => (a.find((x) => !x.ok) || {}).check || "";
-  const strip = (s) => s.replace(/^M\d /, "");
+  const strip = (s) => s.replace(/^[MC]\d /, "");
   function build(b, v) {
     const mc = v ? v.model_call : [], tagged = (t) => mc.filter((x) => x.tag === t), inf = b.inference;
     const rec = tagged("record"), recOk = allOk(rec);
     const headOk = v ? allOk(v.header) : true;
-    const cols = [[{ k: "q", lbl: "Question", sub: "Arc testnet", tags: ["net"], checks: v ? v.header : [], ok: headOk, why: "network: " + firstBad(v ? v.header : []) }]];
+    const cols = [];
+    if (b.retrieval) { const cc = v ? v.corpus || [] : [], R = b.retrieval, f = (re) => cc.find((x) => re.test(x.check) && x.ok === false);
+      const skipped = cc.some((x) => x.ok === null), rp = f(/^C5 replaying/);
+      const why = rp ? (/omits/.test(rp.detail) ? "corpus: replaying retrieval finds a document the answer's ranking left out" : "corpus: replaying retrieval gives a different ranking")
+        : f(/^C3 every ranked/) ? "corpus: a candidate is not in the committed corpus"
+        : f(/^C4/) ? "corpus: a trusted candidate was skipped when building the prompt"
+        : f(/^C2 corpus/) ? "corpus: the ranking differs from the one committed before the model call"
+        : f(/^C5 fetched/) ? "corpus: the fetched files don't match the on-chain commitment"
+        : "corpus: " + strip(firstBad(cc));
+      cols.push([{ k: "c", lbl: "Corpus", sub: `${Number(R.leaf_count).toLocaleString("en-US")} docs · v${R.corpus_version}`, tags: ["corpus"], checks: cc,
+        ok: v ? cc.length > 0 && cc.every((x) => x.ok !== false) : true, why, skipped }]); }
+    cols.push([{ k: "q", lbl: "Question", sub: "Arc testnet", tags: ["net"], checks: v ? v.header : [], ok: headOk, why: "network: " + firstBad(v ? v.header : []) }]);
     const srcs = (b.citations || []).map((c, i) => { const r = v && v.citations[i], m3 = tagged("src:" + i);
       const ok = r ? r.status === "PASS" && allOk(m3) : true;
       const checks = r ? (r.status === "PASS" ? (r.notes || []).map((n) => ({ check: n, ok: true })) : r.reasons.map((x) => ({ check: x, ok: false }))).concat(m3) : [];
@@ -596,7 +836,8 @@ h1 span,h1 b+*{color:var(--ink2)}
     const ev = v.evidence || {}, items = [].concat(...n.tags.map((t) => ev[t] || []));
     if (n.rec) items.unshift(...(ev.record || []).filter((x) => x.kind === "rpc" && /213681cd/.test(JSON.stringify(x.req.params))));
     let h = "";
-    if (n.checks.length) h += `<h4>Checks</h4>` + n.checks.map((c) => `<div class="ck ${c.ok ? "ok" : "bad"}"><i></i><span>${esc(strip(c.check))}${c.detail && (!c.ok || /^M6/.test(c.check)) ? ` <span class="d">· ${esc(c.detail)}</span>` : ""}</span></div>`).join("");
+    if (n.checks.length) h += `<h4>Checks</h4>` + n.checks.map((c) => `<div class="ck ${c.ok === null ? "skip" : c.ok ? "ok" : "bad"}"><i></i><span>${esc(strip(c.check))}${c.detail && (!c.ok || /^M6|^C[1345]/.test(c.check)) ? ` <span class="d">· ${esc(c.detail)}</span>` : ""}</span></div>`).join("");
+    if (n.k === "c") h += corpusHTML(items, n);
     const cmps = items.filter((x) => x.kind === "cmp" || x.kind === "fact");
     if (cmps.length) h += `<h4>Recomputed in your browser <small>against the chain</small></h4>` + cmps.map((x) => x.kind === "fact"
       ? `<div class="ev"><div class="hd">${esc(x.label)}<span class="verdict ${x.ok ? "ok" : "bad"}">${x.ok ? "confirmed" : "not confirmed"}</span></div>
@@ -616,16 +857,44 @@ h1 span,h1 b+*{color:var(--ink2)}
     return h;
   }
 
+  // ---------- corpus evidence: proof path + replay ----------
+  const short = (h) => esc(String(h).slice(0, 10)) + "…" + esc(String(h).slice(-4));
+  const mb = (n) => (n < 1048576 ? Math.max(1, Math.round(n / 1024)) + " KB" : (n / 1048576).toFixed(n > 1048576 * 10 ? 0 : 1) + " MB");
+  function corpusHTML(items, n) {
+    let h = "";
+    for (const pr of items.filter((x) => x.kind === "proof")) {
+      h += `<h4>Inclusion proof <small>Merkle path, recomputed in your browser</small></h4><div class="ev"><div class="hd">${esc(pr.label)} · leaf ${esc(pr.index)} of ${Number(pr.leaves).toLocaleString("en-US")}<span class="verdict ${pr.ok ? "ok" : "bad"}">${pr.ok ? "reaches the on-chain root" : "does not reach the root"}</span></div>
+        <div class="kv path"><span class="k">passage</span><span class="v">${hexSpans(pr.id)}</span>` +
+        (pr.steps || []).map((s, i) => s.op === "leaf" ? `<span class="k">leaf</span><span class="v">${hexSpans(s.value)}</span>`
+          : `<span class="k">${s.op === "up" ? "carry ↑" : (s.op === "L" ? "⊕ left" : "⊕ right")}</span><span class="v">${s.op === "up" ? `<span class="note">odd node, promoted</span>` : hexSpans(s.sib)}</span>`).join("") +
+        `<span class="k">root</span><span class="v">${hexSpans(((pr.steps || []).slice(-1)[0] || {}).value || "", pr.root)}</span><span class="k">on-chain</span><span class="v">${hexSpans(pr.root, ((pr.steps || []).slice(-1)[0] || {}).value)}</span></div></div>`;
+    }
+    for (const r of items.filter((x) => x.kind === "replay")) {
+      h += `<h4>Replay <small>committed retriever, rerun in your browser</small></h4>`;
+      if (r.error) { h += `<div class="ev"><div class="hd">could not fetch the committed corpus from ${esc(new URL(r.uri).host)}<span class="verdict bad">not run</span></div><div class="kv"><span class="k">run locally</span><span class="v">${cmdRow("python verify_citations.py bundle.json")}</span></div></div>`; continue; }
+      const src = r.uri.match(/github(?:usercontent)?\.com\/([^/]+\/[^/]+)\/([0-9a-f]{7})/);
+      h += `<div class="ev"><div class="kv">${(r.arts || []).map((a) => `<span class="k">${esc(a.name.replace("retriever code", "code").replace("model weights", "weights"))}</span><span class="v"><a target="_blank" rel="noopener" href="${esc(a.url)}">${esc(a.url.split("/").pop())}</a> <span class="note">· ${mb(a.bytes)} · sha256 ${short(a.sha256)} ${a.ok ? "≡ committed" : "≠ committed"}</span></span>`).join("")}
+        <span class="k">source</span><span class="v note">${src ? `${esc(src[1])} @ ${esc(src[2])}, pinned by the on-chain URI` : esc(r.uri)}</span></div></div>`;
+      if (r.rows) { const show = r.rows.filter((x, i) => i < 8 || !x.same);
+        h += `<div class="ev"><div class="hd">${r.rows.length} candidates · ${r.ms} ms<span class="verdict ${r.ok ? "ok" : "bad"}">${r.ok ? "≡ identical ranking" : "≠ ranking differs"}</span></div><div class="rk">
+          <span class="th">#</span><span class="th">replayed</span><span class="th">bm25 · dense</span><span class="th">in the answer</span>` +
+          show.map((x) => `<span class="n">${x.rank}</span><span class="v">${short(x.id)}</span><span class="s">${x.replay.bm25 ?? "–"} · ${x.replay.dense ?? "–"}</span><span class="${x.same ? "ok" : "bad"}">${x.same ? "≡ same" : (r.missing.includes(x.id) ? "omitted" : short((x.committed || {}).id || "—"))}</span>`).join("") +
+          `</div>${r.rows.length > show.length ? `<div class="more">+ ${r.rows.length - show.length} more, all identical</div>` : ""}</div>`; }
+    }
+    return h;
+  }
+
   // ---------- verify (in the browser) ----------
   function nodeHTML(n) { return `<div class="node wait${n.wide ? " wide" : ""}" data-k="${n.k}" title="click for evidence"><svg class="g" viewBox="0 0 34 34" aria-hidden="true"><circle class="ring" cx="17" cy="17" r="15.5"/><path class="mk"/></svg><div class="lbl">${esc(n.lbl)}</div><div class="sub">${esc(n.sub)}</div></div>`; }
   async function verify(body, b, tampered) {
     body.querySelector(".ptx").innerHTML = "";
     const vf = body.querySelector(".vf"), cols0 = build(b, null);
     vf.innerHTML = `<div class="flow">${cols0.map((c, i) => (i ? `<div class="link" data-l="${i}"></div>` : "") + `<div class="col">${c.map(nodeHTML).join("")}</div>`).join("")}</div>
-      <div class="why"></div><div class="how"></div><div class="det"></div>`;
+      <div class="why"></div><div class="how"></div><div class="hint"></div><div class="det"></div>`;
     vf.querySelector(".det").style.display = "none";
     const t0 = performance.now(); let v;
-    try { v = await A().verifyBundle(b); }
+    const how = vf.querySelector(".how");
+    try { v = await A().verifyBundle(b, { onStatus: (m) => (how.textContent = b.retrieval ? `replaying retrieval · ${m} from the committed URI…` : "") }); }
     catch (e) { vf.querySelector(".why").textContent = "could not reach the Arc RPC from your browser: " + e.message;
       vf.querySelector(".how").textContent = "verify offline-of-us instead: python verify_citations.py bundle.json  (or the cast commands in the README)"; return; }
     const mine = location.origin && location.origin !== "null"
@@ -645,13 +914,15 @@ h1 span,h1 b+*{color:var(--ink2)}
         el.querySelector(".mk").setAttribute("d", n.ok ? MARK.ok : MARK.bad); el.setAttribute("aria-label", `${n.lbl}: ${n.ok ? "verified" : "failed"}`);
         if (!n.ok && n.src) el.querySelector(".sub").textContent = "not verified";
         if (n.k === "m") el.querySelector(".sub").textContent = n.sub;
+        if (n.k === "c" && n.skipped) el.querySelector(".sub").textContent = "replay: run locally";
         if (!n.ok && !bad) bad = n; await sleep(200); }
     }
     const why = vf.querySelector(".why");
     if (bad) { why.className = "why"; why.innerHTML = SEAL(false) + `<span>${esc(bad.why)}</span>` + (tampered ? `<span class="tag">tampered ${esc(b._t || "copy")}</span>` : ""); }
     else { why.className = "why okk"; why.innerHTML = SEAL(true) + `<span>${v.all_pass ? "Verified on Arc" : "Model call verified · no sources were cited"}</span>`; }
+    vf.querySelector(".hint").textContent = "Click a node to see the on-chain evidence.";
     G.__lastVerify = v;
-    vf.querySelector(".how").textContent = `Checked in your browser, directly against ${new URL(v.rpc).host}: ${v.rpc_calls} RPC calls, ${mine} to our server.`;
+    vf.querySelector(".how").textContent = `Checked in your browser, directly against ${new URL(v.rpc).host}: ${v.rpc_calls} RPC calls, ${mine} to our server${b.retrieval ? `; replay files from ${(v.evidence.corpus || []).some((x) => x.kind === "replay" && x.arts) ? "raw.githubusercontent.com, sha256-checked" : "—"}` : ""}.`;
     return v;
   }
 

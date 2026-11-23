@@ -21,6 +21,7 @@
 <div class="ask"><form id="f"><input id="q" placeholder="Ask anything…" autocomplete="off"><button id="go" aria-label="Ask">
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button></form></div>
 <script src="/static/noble-hashes.min.js"></script>
+<script src="/static/replay.js"></script>
 <script src="/static/arcverify.js"></script>
 <script src="/static/ui.js"></script>
 <script>
@@ -39,7 +40,7 @@ async function ask() {
   } catch (e) { t.querySelector(".body").innerHTML = `<div class="err">${VUI.esc(e.message)}</div>`; }
   $("#go").disabled = false;
 }
-/* ?demo=answer|cite|verify|tamper|model|evidence renders the saved example bundle without spending anything */
+/* ?demo=answer|cite|verify|tamper|model|hide|corpus|evidence renders the saved example bundle without spending anything */
 const demo = new URLSearchParams(location.search).get("demo");
 if (demo) fetch("/api/example").then((r) => r.json()).then(async (b) => {
   $("#chips").style.display = "none";
@@ -48,6 +49,8 @@ if (demo) fetch("/api/example").then((r) => r.json()).then(async (b) => {
   if (demo === "verify") VUI.verify(body, b, false);
   if (demo === "tamper") VUI.verify(body, ArcVerify.tamper(b, "char"), true);
   if (demo === "model") VUI.verify(body, ArcVerify.tamper(b, "model"), true);
+  if (demo === "hide") VUI.verify(body, ArcVerify.tamper(b, "hide"), true);
+  if (demo === "corpus") { await VUI.verify(body, b, false); body.querySelector('[data-k="c"]').click(); }
   if (demo === "evidence") { await VUI.verify(body, b, false); body.querySelector('[data-k="s0"]').click(); body.querySelector(".rpc").open = true; }
 });
 </script>

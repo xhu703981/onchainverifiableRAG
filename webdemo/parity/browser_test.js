@@ -14,19 +14,19 @@ const [base, screens, outJson] = process.argv.slice(2);
   const audit = (reqs, t0) => { const after = reqs.filter((r) => r.t >= t0), host = (u) => (u.startsWith("file:") ? "file" : new URL(u).host);
     const by = {}; after.forEach((r) => (by[host(r.url)] = (by[host(r.url)] || 0) + 1)); return by; };
 
-  for (const [mode, h] of [["answer", 820], ["verify", 820], ["tamper", 820], ["model", 820], ["evidence", 1500]]) {
+  for (const [mode, h] of [["answer", 820], ["verify", 820], ["tamper", 820], ["model", 820], ["hide", 820], ["corpus", 1500], ["evidence", 1500]]) {
     const t0 = Date.now(), { p, reqs } = await open(`${base}/?demo=${mode}`, 1100, h);
     if (mode !== "answer") await waitDone(p);
     await new Promise((r) => setTimeout(r, 2200)); // let the check animation finish
     const tv = reqs.find((r) => /api\/example/.test(r.url)).t;
     report.pages[mode] = { requests_after_bundle_loaded: audit(reqs, tv + 1), how: await p.$$eval(".vf .how", (e) => e.map((x) => x.textContent).join(" | ")).catch(() => "") };
-    if (mode === "evidence") await p.addStyleTag({ content: ".ask{display:none}" });
-    await p.screenshot({ path: path.join(screens, mode + ".png"), fullPage: mode === "evidence" });
+    if (mode === "evidence" || mode === "corpus") await p.addStyleTag({ content: ".ask{display:none}" });
+    await p.screenshot({ path: path.join(screens, mode + ".png"), fullPage: mode === "evidence" || mode === "corpus" });
     if (mode === "verify") {
       // parity: run the real-browser engine on the genuine bundle and all tamper variants
       report.parity = await p.evaluate(async () => {
         const b = await (await fetch("/api/example")).json(), out = {};
-        for (const m of ["", "char", "answer", "prompt", "model"]) { const x = m ? ArcVerify.tamper(b, m) : b; delete x._t;
+        for (const m of ["", "char", "answer", "prompt", "model", "hide"]) { const x = m ? ArcVerify.tamper(b, m) : b; delete x._t;
           const r = await ArcVerify.verifyBundle(x); delete r.evidence; delete r.calls; out[m || "genuine"] = { bundle: x, result: r };
           await new Promise((ok) => setTimeout(ok, 1500)); }
         return out; });

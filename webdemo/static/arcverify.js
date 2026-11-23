@@ -28,12 +28,15 @@
     "registerSource(bytes32,string,string)": "", "isLogger(address)": "(bool)",
     "getRecord(bytes32)": "(bytes32,bytes32,bytes32,bytes32,bytes32,address,uint16,uint64,uint64,uint64,uint64)",
     "commit(bytes32,bytes32,bytes32,bytes32,bytes32,uint16)": "", "finalize(bytes32,bytes32)": "",
+    "corpusInfo(uint256)": "(bytes32,bytes32,uint32,address,uint64,uint64)", "corpusUri(uint256)": "(string)",
+    "isPublisher(address)": "(bool)", "areVerified(bytes32[])": "(bool[])",
   };
   const SEL = {}; for (const s in SIGS) SEL[s] = keccakHex(s).slice(0, 8);
   const SEL2SIG = {}; for (const s in SEL) SEL2SIG[SEL[s]] = s;
   const EVENTS = {
     BATCH: "BatchRegistered(address,uint256,uint256,uint256)", SINGLE: "SourceRegistered(bytes32,string,address,uint256)",
     COMMITTED: "Committed(bytes32,bytes32,bytes32,bytes32,bytes32,uint16,address,uint256)", FINALIZED: "Finalized(bytes32,bytes32,address,uint256)",
+    PUBLISHED: "CorpusPublished(uint256,bytes32,bytes32,uint32,string,address)",
   };
   const TOPIC = {}; for (const k in EVENTS) TOPIC[k] = "0x" + keccakHex(EVENTS[k]);
 
@@ -125,7 +128,8 @@
       const d = params[0].data.replace(/^0x/, ""), sig = SEL2SIG[d.slice(0, 8)], arg = d.slice(8);
       if (!sig) return `cast call ${params[0].to} ${params[0].data}${R}`;
       let a = "";
-      if (arg) a = sig.includes("(address)") ? " 0x" + arg.slice(24) : " 0x" + arg;
+      if (arg) a = sig.includes("(address)") ? " 0x" + arg.slice(24) : sig.includes("(uint256)") ? " " + BigInt("0x" + arg).toString()
+        : sig.includes("[]") ? ` "[${(arg.slice(128).match(/.{64}/g) || []).map((x) => "0x" + x).join(",")}]"` : " 0x" + arg;
       return `cast call ${params[0].to} "${sig}${SIGS[sig]}"${a}${R}`;
     }
     return `cast rpc ${method} '${JSON.stringify(params)}'${R}`;
@@ -304,9 +308,102 @@
       const [m, kind] = modelMatch(b.inference.model || "", sm.served || "");
       model = { requested: b.inference.model ?? null, served: sm.served, provider: sm.provider, match: m, kind };
     }
+    // corpus / retrieval (C checks)
+    const cor = b.retrieval ? await verifyCorpus() : [];
+    async function verifyCorpus() {
+      const R = b.retrieval, out = [], reg = R.corpus_registry, ver = Number(R.corpus_version);
+      const chk = (check, ok, detail = "") => { out.push({ check, ok: ok === null ? null : !!ok, detail, tag: "corpus" }); return !!ok; };
+      tag = "corpus"; const u256 = ver.toString(16).padStart(64, "0");
+      if (!chk("C1 CorpusRegistry has code", !["0x", "0x0"].includes(await rpc("eth_getCode", [reg, "latest"])), reg)) return out;
+      const info = await call(reg, "corpusInfo(uint256)", u256);
+      const root = "0x" + toHex(word(info, 0)), cfgHash = "0x" + toHex(word(info, 1)), leaves = Number(asInt(word(info, 2))), publisher = asAddr(word(info, 3));
+      cmp("corpus root on-chain vs bundle", R.corpus_root.toLowerCase(), root);
+      chk("C1 on-chain corpus version matches the bundle (root, leaf count, config hash)",
+        root === R.corpus_root.toLowerCase() && leaves === Number(R.leaf_count) && cfgHash === R.config_hash.toLowerCase(), `v${ver} · ${leaves} leaves`);
+      chk("C1 corpus published by an authorized publisher", asInt(await call(reg, "isPublisher(address)", padAddr(publisher))) === 1n, publisher);
+      const rc = await rpc("eth_getTransactionReceipt", [R.publish_tx]);
+      chk("C1 publish tx emitted CorpusPublished(version, root)", !!rc && parseInt(rc.status, 16) === 1 && rc.logs.some((l) =>
+        l.address.toLowerCase() === reg.toLowerCase() && l.topics[0] === TOPIC.PUBLISHED && BigInt(l.topics[1]) === BigInt(ver) && l.topics[2] === root), R.publish_tx);
+      const ch = await shaStr(R.config_json);
+      cmp("sha256(retrieval config) vs on-chain configHash", ch, cfgHash, { cmd: "jq -j .retrieval.config_json bundle.json | sha256sum" });
+      chk("C2 sha256(retrieval config) == on-chain configHash", ch === cfgHash, `recomputed ${ch.slice(0, 18)}...`);
+      const cfg = JSON.parse(R.config_json), ranked = JSON.parse(R.ranked_json), rh = await shaStr(R.ranked_json);
+      let body = {}; try { body = b.inference ? JSON.parse(b.inference.request_body) : {}; } catch (e) {}
+      const sysmsg = ((body.messages || []).find((m) => m.role === "system") || {}).content || "";
+      const inReq = (/retrieval=(0x[0-9a-f]{64})/.exec(sysmsg) || [])[1] || "(absent)";
+      cmp("sha256(ranked list) vs hash inside the hashed request", rh, inReq, { cmd: "jq -j .retrieval.ranked_json bundle.json | sha256sum" });
+      chk("C2 corpus, config and ranked-list hashes are inside the hashed request",
+        sysmsg.includes(`corpus=v${ver}:${root}`) && sysmsg.includes(`retrieval_config=${cfgHash}`) && sysmsg.includes(`retrieval=${rh}`), `sha256(ranked list) ${rh.slice(0, 18)}...`);
+      const proofs = R.proofs || [], RP = G.ArcReplay;
+      const pv = ranked.map((x, r) => r < proofs.length ? RP.merkleVerify(x.id, Number(proofs[r].leaf_index), leaves, proofs[r].path, root) : { ok: false, steps: [] });
+      const bad = pv.findIndex((x) => !x.ok);
+      chk("C3 every ranked candidate has a valid inclusion proof against the on-chain root", bad < 0,
+        bad < 0 ? `${ranked.length} of ${ranked.length} proofs valid` : `candidate #${bad + 1} ${ranked[bad].id.slice(0, 12)}... is not in the committed corpus`);
+      const ids = ranked.map((x) => x.id), prompt = ((b.inference || {}).passages || []).map((p) => p.content_hash.toLowerCase());
+      // show one proof path: the first cited passage (else the first failing / first candidate)
+      const c0 = (b.citations || [])[0], show = bad >= 0 ? bad : Math.max(0, c0 ? ids.indexOf(c0.content_hash.toLowerCase()) : 0);
+      if (ranked.length) ev("corpus", { kind: "proof", label: (c0 && bad < 0 ? `inclusion proof for ${c0.id}` : `inclusion proof for candidate #${show + 1}`),
+        id: ids[show], index: proofs[show] ? proofs[show].leaf_index : null, leaves, root, ...pv[show] });
+      chk("C3 every prompt passage is a ranked candidate", prompt.every((h) => ids.includes(h)), `${prompt.length} prompt passages`);
+      const vb = await call(contract, "areVerified(bytes32[])", (32).toString(16).padStart(64, "0") + ids.length.toString(16).padStart(64, "0") + ids.map((h) => h.slice(2).toLowerCase()).join(""));
+      const off = Number(asInt(word(vb, 0))), n = Number(asInt(vb.slice(off, off + 32))), vnow = [];
+      for (let i = 0; i < n; i++) vnow.push(asInt(vb.slice(off + 32 + 32 * i, off + 64 + 32 * i)) === 1n);
+      const want = ids.filter((h, i) => vnow[i]).slice(0, Number(cfg.selection.prompt_k));
+      chk("C4 prompt = the first k verified candidates in rank order (none skipped)", JSON.stringify(want) === JSON.stringify(prompt),
+        `${vnow.filter(Boolean).length} of ${ids.length} candidates verified on SourceRegistry`);
+      if (opts.replay === false) { chk("C5 replay of the committed retrieval", null, "skipped (--no-replay)"); return out; }
+      const ub = await call(reg, "corpusUri(uint256)", u256), uri = dynString(ub, Number(asInt(word(ub, 0))));
+      let arts;
+      try { arts = await loadArtifacts(cfg, uri, opts); } catch (e) { chk("C5 replay of the committed retrieval", null, `not run: ${e.name || "Error"}`); ev("corpus", { kind: "replay", error: String(e.message || e), uri }); return out; }
+      const names = arts.filter((a) => !a.ok).map((a) => a.name);
+      if (!chk("C5 fetched corpus, retriever code, weights and tokenizer match the committed config", !names.length,
+        !names.length ? "sha256 match" : `${names[0]} sha256 differs from the committed config`)) { ev("corpus", { kind: "replay", arts, uri }); return out; }
+      const A = Object.fromEntries(arts.map((a) => [a.name, a.data])), t0 = performance.now();
+      const key = cfgHash; let ix = IDX.get(key), rows;
+      if (!ix) { rows = new TextDecoder().decode(A.corpus).split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l)); }
+      else rows = ix.docs;
+      const froot = RP.merkleRoot(rows.map((r) => r.hash));
+      chk("C5 Merkle root of the fetched corpus == on-chain root", froot === root && rows.length === leaves, `${rows.length} passages`);
+      if (!ix) { const wb = A["model weights"]; ix = RP.buildIndex(cfg, rows, JSON.parse(new TextDecoder().decode(A.tokenizer)), wb.buffer.slice(wb.byteOffset, wb.byteOffset + wb.byteLength)); IDX.set(key, ix); }
+      const q = R.query ?? b.question ?? "", rep = RP.rank(ix, q), d = replayDiff(ranked, rep);
+      chk("C5 replaying the committed retriever gives the same ranked candidates", !d, !d ? `${rep.length} candidates, identical ids and order` : d);
+      chk("C5 replay query == bundle question", (R.query ?? b.question) === b.question);
+      ev("corpus", { kind: "replay", arts: arts.map(({ data, ...a }) => a), uri, froot, ms: Math.round(performance.now() - t0), ok: !d, diff: d,
+        rows: rep.map((x, i) => ({ rank: i + 1, id: x.id, replay: x, committed: ranked[i] || null, same: !!ranked[i] && ranked[i].id === x.id })),
+        missing: rep.filter((x) => !ids.includes(x.id)).map((x) => x.id) });
+      return out;
+    }
+
     tag = "net";
+    const okAll = ok && cor.every((x) => x.ok !== false);
     const owner = asAddr(await call(contract, "owner()"));
-    return { all_pass: ok, model, header: head, citations: cites, model_call: inf, owner, rpc_calls: calls.length, rpc: rpcUrl, evidence, calls };
+    return { all_pass: okAll, model, header: head, citations: cites, model_call: inf, corpus: cor, owner, rpc_calls: calls.length, rpc: rpcUrl, evidence, calls };
+  }
+
+  // ---------- committed artifacts (fetched from the on-chain URI, sha256-checked; cached per page) ----------
+  const ART = new Map(), IDX = new Map();
+  async function loadArtifacts(cfg, configUrl, opts) {
+    const list = [["corpus", cfg.corpus], ["retriever code", cfg.retriever_code], ["model weights", cfg.model.weights], ["tokenizer", cfg.model.tokenizer]];
+    return Promise.all(list.map(async ([name, a]) => {
+      const url = new URL(a.path, configUrl).href;
+      let data = ART.get(a.sha256);
+      if (!data) {
+        if (opts.onStatus) opts.onStatus(`fetching ${name}`);
+        data = opts.loadArtifact ? await opts.loadArtifact(a.path) : new Uint8Array(await (await fetch(url, { cache: "force-cache" })).arrayBuffer());
+      }
+      const h = await sha256(data), ok = h === a.sha256;
+      if (ok) ART.set(a.sha256, data);
+      return { name, url, sha256: h, expected: a.sha256, ok, bytes: data.length, data };
+    }));
+  }
+  function replayDiff(committed, replayed) {
+    const cids = committed.map((x) => x.id);
+    for (let r = 0; r < replayed.length; r++) if (!cids.includes(replayed[r].id)) return `replay ranks ${replayed[r].id.slice(0, 12)}... at #${r + 1}, but the answer's list omits it`;
+    for (let r = 0; r < Math.min(replayed.length, committed.length); r++) { const a = replayed[r], c = committed[r];
+      if (a.id !== c.id) return `rank #${r + 1} differs: replay ${a.id.slice(0, 12)}..., answer ${c.id.slice(0, 12)}...`;
+      if (nn(a.bm25) !== nn(c.bm25) || nn(a.dense) !== nn(c.dense) || Math.abs(a.rrf - Number(c.rrf || 0)) > 1e-9) return `rank #${r + 1} scores differ`; }
+    if (replayed.length !== committed.length) return `replay returns ${replayed.length} candidates, the answer lists ${committed.length}`;
+    return "";
   }
 
   // demo tampering (client-side, on a copy)
@@ -318,6 +415,8 @@
     else if (mode === "model") { const raw = new TextDecoder().decode(b64bytes(t.inference.response_body_b64))
         .replace(/"model":"[^"]*"/, '"model":"meta-llama/llama-3.1-8b-instruct"');
       let bin = ""; enc.encode(raw).forEach((x) => (bin += String.fromCharCode(x))); t.inference.response_body_b64 = btoa(bin); t._t = "served model"; }
+    else if (mode === "hide" && t.retrieval) { const r = JSON.parse(t.retrieval.ranked_json), i = 0;
+      t._t = `ranking (hid #${i + 1})`; r.splice(i, 1); t.retrieval.proofs.splice(i, 1); t.retrieval.ranked_json = canonical(r); }
     else { t.inference.request_body = t.inference.request_body.replace("[P1] ", "[P1] Note: "); t._t = "the prompt"; }
     return t;
   }

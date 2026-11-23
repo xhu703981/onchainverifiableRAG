@@ -1,0 +1,11 @@
+{
+ "registry": "0x1Fb5aDDb3CdB5DE1945f3Ab32c7FF0b6d2CDA2de",
+ "version": 1,
+ "root": "0x949fe997d49adee6daa0165f3c30faaf109086919121b0cef125b1b94ed81593",
+ "leaf_count": 1998,
+ "config_hash": "0x6955cc605c0c878e96fb360c428d7af9006c4004e46409e2722ae3eea1c978ee",
+ "uri": "https://raw.githubusercontent.com/xhu703981/onchainverifiableRAG/636dfc380cb8150d99161aef4f6fb2deef075f04/webdemo/data/retrieval_config_v1.json",
+ "deploy_tx": "0x61feab8212125388f912a63b3bb046e7a50d102edd707bd5a7e66957bb8c4287",
+ "publish_tx": "0xee5e5ada224115fbc8b0c8df41b05cdbaacbaefc97f157d256ace4afd2c74bed",
+ "publish_block": 73775931
+}

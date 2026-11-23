@@ -30,7 +30,7 @@
     body.innerHTML = `<p class="a ${idk ? "idk" : ""}">${esc(b.answer)}</p>
       <div class="bar">${(b.citations || []).map((c, i) => `<span class="cite" data-i="${i}">${esc(c.id)}</span>`).join("")}
         <span class="sp"></span>
-        ${b.inference ? `<span class="menu"><span data-m="char">passage</span><span data-m="answer">answer</span><span data-m="prompt">prompt</span><span data-m="model">model</span></span>
+        ${b.inference ? `<span class="menu"><span data-m="char">passage</span><span data-m="answer">answer</span><span data-m="prompt">prompt</span><span data-m="model">model</span>${b.retrieval ? `<span data-m="hide">hide a document</span>` : ""}</span>
         <button class="icon" data-a="tamper" title="Tamper with a copy, then verify it">tamper</button>` : ""}
         ${opt.download === false ? "" : `<button class="icon" data-a="dl" title="Download bundle" aria-label="Download bundle">${DL}</button>`}
         <button class="btn" data-a="verify">Verify</button></div>
@@ -56,12 +56,23 @@
     return (rs && rs[0]) || "source check failed"; }
   const allOk = (a) => a.every((x) => x.ok);
   const firstBad = (a) => (a.find((x) => !x.ok) || {}).check || "";
-  const strip = (s) => s.replace(/^M\d /, "");
+  const strip = (s) => s.replace(/^[MC]\d /, "");
   function build(b, v) {
     const mc = v ? v.model_call : [], tagged = (t) => mc.filter((x) => x.tag === t), inf = b.inference;
     const rec = tagged("record"), recOk = allOk(rec);
     const headOk = v ? allOk(v.header) : true;
-    const cols = [[{ k: "q", lbl: "Question", sub: "Arc testnet", tags: ["net"], checks: v ? v.header : [], ok: headOk, why: "network: " + firstBad(v ? v.header : []) }]];
+    const cols = [];
+    if (b.retrieval) { const cc = v ? v.corpus || [] : [], R = b.retrieval, f = (re) => cc.find((x) => re.test(x.check) && x.ok === false);
+      const skipped = cc.some((x) => x.ok === null), rp = f(/^C5 replaying/);
+      const why = rp ? (/omits/.test(rp.detail) ? "corpus: replaying retrieval finds a document the answer's ranking left out" : "corpus: replaying retrieval gives a different ranking")
+        : f(/^C3 every ranked/) ? "corpus: a candidate is not in the committed corpus"
+        : f(/^C4/) ? "corpus: a trusted candidate was skipped when building the prompt"
+        : f(/^C2 corpus/) ? "corpus: the ranking differs from the one committed before the model call"
+        : f(/^C5 fetched/) ? "corpus: the fetched files don't match the on-chain commitment"
+        : "corpus: " + strip(firstBad(cc));
+      cols.push([{ k: "c", lbl: "Corpus", sub: `${Number(R.leaf_count).toLocaleString("en-US")} docs · v${R.corpus_version}`, tags: ["corpus"], checks: cc,
+        ok: v ? cc.length > 0 && cc.every((x) => x.ok !== false) : true, why, skipped }]); }
+    cols.push([{ k: "q", lbl: "Question", sub: "Arc testnet", tags: ["net"], checks: v ? v.header : [], ok: headOk, why: "network: " + firstBad(v ? v.header : []) }]);
     const srcs = (b.citations || []).map((c, i) => { const r = v && v.citations[i], m3 = tagged("src:" + i);
       const ok = r ? r.status === "PASS" && allOk(m3) : true;
       const checks = r ? (r.status === "PASS" ? (r.notes || []).map((n) => ({ check: n, ok: true })) : r.reasons.map((x) => ({ check: x, ok: false }))).concat(m3) : [];
@@ -94,7 +105,8 @@
     const ev = v.evidence || {}, items = [].concat(...n.tags.map((t) => ev[t] || []));
     if (n.rec) items.unshift(...(ev.record || []).filter((x) => x.kind === "rpc" && /213681cd/.test(JSON.stringify(x.req.params))));
     let h = "";
-    if (n.checks.length) h += `<h4>Checks</h4>` + n.checks.map((c) => `<div class="ck ${c.ok ? "ok" : "bad"}"><i></i><span>${esc(strip(c.check))}${c.detail && (!c.ok || /^M6/.test(c.check)) ? ` <span class="d">· ${esc(c.detail)}</span>` : ""}</span></div>`).join("");
+    if (n.checks.length) h += `<h4>Checks</h4>` + n.checks.map((c) => `<div class="ck ${c.ok === null ? "skip" : c.ok ? "ok" : "bad"}"><i></i><span>${esc(strip(c.check))}${c.detail && (!c.ok || /^M6|^C[1345]/.test(c.check)) ? ` <span class="d">· ${esc(c.detail)}</span>` : ""}</span></div>`).join("");
+    if (n.k === "c") h += corpusHTML(items, n);
     const cmps = items.filter((x) => x.kind === "cmp" || x.kind === "fact");
     if (cmps.length) h += `<h4>Recomputed in your browser <small>against the chain</small></h4>` + cmps.map((x) => x.kind === "fact"
       ? `<div class="ev"><div class="hd">${esc(x.label)}<span class="verdict ${x.ok ? "ok" : "bad"}">${x.ok ? "confirmed" : "not confirmed"}</span></div>
@@ -114,16 +126,44 @@
     return h;
   }
 
+  // ---------- corpus evidence: proof path + replay ----------
+  const short = (h) => esc(String(h).slice(0, 10)) + "…" + esc(String(h).slice(-4));
+  const mb = (n) => (n < 1048576 ? Math.max(1, Math.round(n / 1024)) + " KB" : (n / 1048576).toFixed(n > 1048576 * 10 ? 0 : 1) + " MB");
+  function corpusHTML(items, n) {
+    let h = "";
+    for (const pr of items.filter((x) => x.kind === "proof")) {
+      h += `<h4>Inclusion proof <small>Merkle path, recomputed in your browser</small></h4><div class="ev"><div class="hd">${esc(pr.label)} · leaf ${esc(pr.index)} of ${Number(pr.leaves).toLocaleString("en-US")}<span class="verdict ${pr.ok ? "ok" : "bad"}">${pr.ok ? "reaches the on-chain root" : "does not reach the root"}</span></div>
+        <div class="kv path"><span class="k">passage</span><span class="v">${hexSpans(pr.id)}</span>` +
+        (pr.steps || []).map((s, i) => s.op === "leaf" ? `<span class="k">leaf</span><span class="v">${hexSpans(s.value)}</span>`
+          : `<span class="k">${s.op === "up" ? "carry ↑" : (s.op === "L" ? "⊕ left" : "⊕ right")}</span><span class="v">${s.op === "up" ? `<span class="note">odd node, promoted</span>` : hexSpans(s.sib)}</span>`).join("") +
+        `<span class="k">root</span><span class="v">${hexSpans(((pr.steps || []).slice(-1)[0] || {}).value || "", pr.root)}</span><span class="k">on-chain</span><span class="v">${hexSpans(pr.root, ((pr.steps || []).slice(-1)[0] || {}).value)}</span></div></div>`;
+    }
+    for (const r of items.filter((x) => x.kind === "replay")) {
+      h += `<h4>Replay <small>committed retriever, rerun in your browser</small></h4>`;
+      if (r.error) { h += `<div class="ev"><div class="hd">could not fetch the committed corpus from ${esc(new URL(r.uri).host)}<span class="verdict bad">not run</span></div><div class="kv"><span class="k">run locally</span><span class="v">${cmdRow("python verify_citations.py bundle.json")}</span></div></div>`; continue; }
+      const src = r.uri.match(/github(?:usercontent)?\.com\/([^/]+\/[^/]+)\/([0-9a-f]{7})/);
+      h += `<div class="ev"><div class="kv">${(r.arts || []).map((a) => `<span class="k">${esc(a.name.replace("retriever code", "code").replace("model weights", "weights"))}</span><span class="v"><a target="_blank" rel="noopener" href="${esc(a.url)}">${esc(a.url.split("/").pop())}</a> <span class="note">· ${mb(a.bytes)} · sha256 ${short(a.sha256)} ${a.ok ? "≡ committed" : "≠ committed"}</span></span>`).join("")}
+        <span class="k">source</span><span class="v note">${src ? `${esc(src[1])} @ ${esc(src[2])}, pinned by the on-chain URI` : esc(r.uri)}</span></div></div>`;
+      if (r.rows) { const show = r.rows.filter((x, i) => i < 8 || !x.same);
+        h += `<div class="ev"><div class="hd">${r.rows.length} candidates · ${r.ms} ms<span class="verdict ${r.ok ? "ok" : "bad"}">${r.ok ? "≡ identical ranking" : "≠ ranking differs"}</span></div><div class="rk">
+          <span class="th">#</span><span class="th">replayed</span><span class="th">bm25 · dense</span><span class="th">in the answer</span>` +
+          show.map((x) => `<span class="n">${x.rank}</span><span class="v">${short(x.id)}</span><span class="s">${x.replay.bm25 ?? "–"} · ${x.replay.dense ?? "–"}</span><span class="${x.same ? "ok" : "bad"}">${x.same ? "≡ same" : (r.missing.includes(x.id) ? "omitted" : short((x.committed || {}).id || "—"))}</span>`).join("") +
+          `</div>${r.rows.length > show.length ? `<div class="more">+ ${r.rows.length - show.length} more, all identical</div>` : ""}</div>`; }
+    }
+    return h;
+  }
+
   // ---------- verify (in the browser) ----------
   function nodeHTML(n) { return `<div class="node wait${n.wide ? " wide" : ""}" data-k="${n.k}" title="click for evidence"><svg class="g" viewBox="0 0 34 34" aria-hidden="true"><circle class="ring" cx="17" cy="17" r="15.5"/><path class="mk"/></svg><div class="lbl">${esc(n.lbl)}</div><div class="sub">${esc(n.sub)}</div></div>`; }
   async function verify(body, b, tampered) {
     body.querySelector(".ptx").innerHTML = "";
     const vf = body.querySelector(".vf"), cols0 = build(b, null);
     vf.innerHTML = `<div class="flow">${cols0.map((c, i) => (i ? `<div class="link" data-l="${i}"></div>` : "") + `<div class="col">${c.map(nodeHTML).join("")}</div>`).join("")}</div>
-      <div class="why"></div><div class="how"></div><div class="det"></div>`;
+      <div class="why"></div><div class="how"></div><div class="hint"></div><div class="det"></div>`;
     vf.querySelector(".det").style.display = "none";
     const t0 = performance.now(); let v;
-    try { v = await A().verifyBundle(b); }
+    const how = vf.querySelector(".how");
+    try { v = await A().verifyBundle(b, { onStatus: (m) => (how.textContent = b.retrieval ? `replaying retrieval · ${m} from the committed URI…` : "") }); }
     catch (e) { vf.querySelector(".why").textContent = "could not reach the Arc RPC from your browser: " + e.message;
       vf.querySelector(".how").textContent = "verify offline-of-us instead: python verify_citations.py bundle.json  (or the cast commands in the README)"; return; }
     const mine = location.origin && location.origin !== "null"
@@ -143,13 +183,15 @@
         el.querySelector(".mk").setAttribute("d", n.ok ? MARK.ok : MARK.bad); el.setAttribute("aria-label", `${n.lbl}: ${n.ok ? "verified" : "failed"}`);
         if (!n.ok && n.src) el.querySelector(".sub").textContent = "not verified";
         if (n.k === "m") el.querySelector(".sub").textContent = n.sub;
+        if (n.k === "c" && n.skipped) el.querySelector(".sub").textContent = "replay: run locally";
         if (!n.ok && !bad) bad = n; await sleep(200); }
     }
     const why = vf.querySelector(".why");
     if (bad) { why.className = "why"; why.innerHTML = SEAL(false) + `<span>${esc(bad.why)}</span>` + (tampered ? `<span class="tag">tampered ${esc(b._t || "copy")}</span>` : ""); }
     else { why.className = "why okk"; why.innerHTML = SEAL(true) + `<span>${v.all_pass ? "Verified on Arc" : "Model call verified · no sources were cited"}</span>`; }
+    vf.querySelector(".hint").textContent = "Click a node to see the on-chain evidence.";
     G.__lastVerify = v;
-    vf.querySelector(".how").textContent = `Checked in your browser, directly against ${new URL(v.rpc).host}: ${v.rpc_calls} RPC calls, ${mine} to our server.`;
+    vf.querySelector(".how").textContent = `Checked in your browser, directly against ${new URL(v.rpc).host}: ${v.rpc_calls} RPC calls, ${mine} to our server${b.retrieval ? `; replay files from ${(v.evidence.corpus || []).some((x) => x.kind === "replay" && x.arts) ? "raw.githubusercontent.com, sha256-checked" : "—"}` : ""}.`;
     return v;
   }
 

@@ -98,6 +98,19 @@ h1 span,h1 b+*{color:var(--ink2)}
 .ck.bad i{background:none;border:1.5px solid var(--fail);width:8px;height:8px;margin-top:6.5px}
 .ck.bad{color:var(--fail)}
 .ck .d{color:var(--muted)}
+.ck.skip i{background:none;border:1px dashed var(--muted);width:8px;height:8px;margin-top:6.5px}
+.ck.skip{color:var(--muted)}
+.hint{font:400 12px/1.5 var(--sans);color:var(--muted);margin-top:2px}
+.hint::before{content:"↳ ";color:var(--faint)}
+.hint:empty{display:none}
+.kv.path{grid-template-columns:78px 1fr}
+.rk{display:grid;grid-template-columns:28px minmax(0,1.2fr) minmax(0,.8fr) minmax(0,1fr);gap:0 14px;font:400 12px/1.85 var(--mono);font-variant-numeric:tabular-nums;color:var(--ink);border-top:1px solid var(--rule2);margin-top:4px}
+.rk>span{border-bottom:1px solid var(--rule2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rk .th{font:400 11.5px/2 var(--sans);color:var(--muted)}
+.rk .n,.rk .s{color:var(--muted)}
+.rk .ok{color:var(--seal);font-family:var(--sans)}
+.rk .bad{color:var(--fail);font-family:var(--sans);font-weight:500}
+.more{font:400 12px var(--sans);color:var(--muted);margin-top:6px}
 .ev{margin:0 0 14px}
 .ev .hd{display:flex;align-items:baseline;gap:10px;color:var(--ink2);font-size:13px;margin-bottom:3px}
 .verdict{margin-left:auto;font:500 12px var(--sans);white-space:nowrap}

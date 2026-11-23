@@ -1,0 +1,24 @@
+Start verifying contract `0x1Fb5aDDb3CdB5DE1945f3Ab32c7FF0b6d2CDA2de` deployed on arc-testnet
+Compiler version: 0.8.24
+
+Submitting verification for [contracts/CorpusRegistry.sol:CorpusRegistry] 0x1Fb5aDDb3CdB5DE1945f3Ab32c7FF0b6d2CDA2de.
+Submitted contract for verification:
+	Response: `OK`
+	GUID: `1fb5addb3cdb5de1945f3ab32c7ff0b6d2cda2de6b04cbd6`
+	URL: https://explorer.testnet.arc.io/address/0x1fb5addb3cdb5de1945f3ab32c7ff0b6d2cda2de
+Contract verification status:
+Response: `OK`
+Details: `Pending in queue`
+Warning: Verification is still pending...; waiting 15 seconds before trying again (7 tries remaining)
+Contract verification status:
+Response: `OK`
+Details: `Pending in queue`
+Warning: Verification is still pending...; waiting 15 seconds before trying again (6 tries remaining)
+Contract verification status:
+Response: `OK`
+Details: `Pending in queue`
+Warning: Verification is still pending...; waiting 15 seconds before trying again (5 tries remaining)
+Contract verification status:
+Response: `OK`
+Details: `Pass - Verified`
+Contract successfully verified

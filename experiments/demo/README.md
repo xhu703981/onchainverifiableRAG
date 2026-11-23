@@ -15,3 +15,7 @@ for f in experiments/demo/bundle_*.json; do python3 python/verify_citations.py "
 - Genuine: `bundle_test16_logged.json`, `bundle_test62_logged.json`. Both pass all checks.
 - Counterexamples, all FAIL: `bundle_test62_logged_fake_citation.json` (cites a passage that was not in the prompt), `..._prompt_tampered.json` (prompt edited after the commit), `..._answer_altered.json` (answer changed after the logged response).
 - Full verifier output: `verifier_output_model_call.txt`. All on-chain txs: `../arc/inference_txs.json`.
+
+## Corpus commitment counterexamples (CorpusRegistry v1)
+- `bundle_corpus_hide.json`: a dishonest server dropped the best trusted candidate from the ranking, then committed everything consistently (real gpt-4o-mini call + on-chain log). Every hash check passes. Only **C5 replay** fails: "replay ranks 0xe400687334... at #6, but the answer's list omits it".
+- `bundle_corpus_inject.json`: the server ranked a passage that is not in the committed corpus. **C3 inclusion** fails ("candidate #1 ... is not in the committed corpus"), and the replay differs too.
