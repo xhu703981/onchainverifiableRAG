@@ -39,6 +39,8 @@ import hashlib
 import json
 import re
 import sys
+import time
+import urllib.error
 import urllib.request
 
 DEFAULT_RPC = "https://rpc.testnet.arc.io"
@@ -72,8 +74,17 @@ class RPC:
         self.n += 1
         body = json.dumps({"jsonrpc": "2.0", "id": self.n, "method": method, "params": params}).encode()
         req = urllib.request.Request(self.url, body, {"Content-Type": "application/json", "User-Agent": "verify-citations/1.0"})
-        with urllib.request.urlopen(req, timeout=30) as r:
-            out = json.load(r)
+        for attempt in range(7):  # the public RPC rate-limits bursts: back off and retry
+            try:
+                with urllib.request.urlopen(req, timeout=30) as r:
+                    out = json.load(r)
+            except urllib.error.HTTPError as e:
+                if e.code != 429 or attempt == 6:
+                    raise
+                out = {"error": {"code": -32005, "message": "rate limit exceeded"}}
+            if not (isinstance(out.get("error"), dict) and out["error"].get("code") == -32005) or attempt == 6:
+                break
+            time.sleep(0.4 * 2 ** attempt)
         if "error" in out:
             raise RuntimeError(f"{method}: {out['error']}")
         return out["result"]

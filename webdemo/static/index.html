@@ -4,202 +4,46 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Verifiable RAG</title>
-<style>
-  :root{--bg:#fcfcfb;--ink:#26231f;--soft:#8a847c;--faint:#c9c4bd;--line:#ecebe8;--ok:#1f9d55;--bad:#d64545;--pend:#d9d6d1}
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);font:300 15px/1.6 "Inter","Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
-  a{color:inherit}
-  .wrap{max-width:760px;margin:0 auto;padding:72px 28px 180px}
-  h1{font-weight:300;font-size:20px;letter-spacing:.02em;margin:0 0 56px;color:var(--soft)}
-  h1 b{font-weight:500;color:var(--ink)}
-  .chips{display:flex;flex-wrap:wrap;gap:6px 18px;margin-bottom:40px}
-  .chip{font-size:13px;color:var(--soft);cursor:pointer;border-bottom:1px solid transparent}
-  .chip:hover{color:var(--ink);border-color:var(--faint)}
-  .turn{margin-bottom:72px;animation:fade .5s ease}
-  .q{font-size:14px;color:var(--soft);margin-bottom:10px}
-  .a{font-size:30px;font-weight:300;letter-spacing:-.01em;line-height:1.25;margin:0 0 18px}
-  .a.idk{color:var(--soft)}
-  .loading{display:inline-flex;gap:6px;padding:16px 0}
-  .loading i{width:6px;height:6px;border-radius:50%;background:var(--faint);animation:pulse 1.2s infinite}
-  .loading i:nth-child(2){animation-delay:.2s}.loading i:nth-child(3){animation-delay:.4s}
-  .bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-  .cite{font-size:12px;font-weight:500;color:var(--soft);border:1px solid var(--line);border-radius:999px;padding:2px 10px;cursor:pointer;background:#fff}
-  .cite:hover,.cite.on{color:var(--ink);border-color:var(--faint)}
-  .sp{flex:1}
-  .btn{font:inherit;font-size:13px;font-weight:400;border:1px solid var(--ink);background:var(--ink);color:#fff;border-radius:999px;padding:5px 16px;cursor:pointer}
-  .btn:disabled{opacity:.4;cursor:default}
-  .icon{border:0;background:none;color:var(--faint);cursor:pointer;padding:4px;display:inline-flex;font:inherit;font-size:13px}
-  .icon:hover{color:var(--ink)}
-  .menu{display:none;gap:14px;font-size:12.5px;color:var(--soft)}
-  .menu.on{display:inline-flex}
-  .menu span{cursor:pointer}.menu span:hover{color:var(--bad)}
-  .ptext{font-size:13.5px;color:#5b5650;margin:16px 0 0;padding-left:14px;border-left:2px solid var(--line);white-space:pre-wrap;animation:fade .3s}
-  /* diagram */
-  .flow{margin-top:36px;display:flex;align-items:center;animation:fade .4s}
-  .col{display:flex;flex-direction:column;gap:18px;align-items:center}
-  .link{flex:1;height:1px;background:var(--line);min-width:24px;position:relative;overflow:hidden}
-  .link::after{content:"";position:absolute;inset:0;background:var(--ok);transform:scaleX(0);transform-origin:left;transition:transform .45s ease}
-  .link.ok::after{transform:scaleX(1)}
-  .link.bad::after{background:var(--bad);transform:scaleX(1)}
-  .node{display:flex;flex-direction:column;align-items:center;gap:7px;cursor:pointer;width:86px}
-  .dot{width:38px;height:38px;border-radius:50%;border:1.5px solid var(--pend);display:grid;place-items:center;background:#fff;transition:all .35s ease}
-  .dot svg{width:18px;height:18px;opacity:0;transform:scale(.4);transition:all .35s cubic-bezier(.3,1.6,.6,1)}
-  .node.wait .dot{animation:pulse 1.2s infinite}
-  .node.ok .dot{border-color:var(--ok);background:#effaf3}
-  .node.bad .dot{border-color:var(--bad);background:#fdf0f0}
-  .node.ok .dot svg,.node.bad .dot svg{opacity:1;transform:scale(1)}
-  .node.ok .dot{color:var(--ok)}.node.bad .dot{color:var(--bad)}
-  .lbl{font-size:12.5px;font-weight:400}
-  .node.wide{width:150px}
-  .sub{font-size:11px;color:var(--faint);margin-top:-6px;white-space:nowrap}
-  .node:hover .lbl{text-decoration:underline;text-decoration-color:var(--faint)}
-  .why{margin-top:22px;font-size:13.5px;color:var(--bad);min-height:20px}
-  .why.okk{color:var(--ok)}
-  .tag{font-size:11px;color:var(--bad);border:1px solid #f3cccc;border-radius:999px;padding:1px 8px;margin-left:8px}
-  .det{margin-top:16px;font:11.5px/1.7 ui-monospace,"Cascadia Mono",Consolas,monospace;color:var(--soft);word-break:break-all;animation:fade .25s}
-  .det a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--faint)}
-  .det .t{font:300 13.5px/1.6 inherit;font-family:inherit;color:#5b5650;white-space:pre-wrap;margin-bottom:8px}
-  .ask{position:fixed;left:0;right:0;bottom:0;padding:30px 28px 32px;background:linear-gradient(rgba(252,252,251,0),var(--bg) 35%)}
-  .ask form{max-width:760px;margin:0 auto;position:relative}
-  .ask input{width:100%;font:inherit;font-size:16px;padding:15px 54px 15px 20px;border:1px solid var(--line);border-radius:999px;background:#fff;outline:none;box-shadow:0 2px 14px rgba(0,0,0,.04)}
-  .ask input:focus{border-color:var(--faint)}
-  .ask button{position:absolute;right:7px;top:7px;width:38px;height:38px;border-radius:50%;border:0;background:var(--ink);color:#fff;cursor:pointer;display:grid;place-items:center}
-  .ask button:disabled{opacity:.3}
-  .err{color:var(--bad);font-size:13px}
-  @keyframes pulse{0%,100%{opacity:.35}50%{opacity:1}}
-  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
-</style>
+<link rel="stylesheet" href="/static/ui.css">
 </head>
 <body>
 <div class="wrap">
-  <h1><b>Verifiable</b> RAG</h1>
+  <div class="top"><h1><b>Verifiable</b> RAG</h1><button class="file" id="file" title="Verify a downloaded bundle, entirely in your browser">verify a file</button></div>
   <div class="chips" id="chips"></div>
   <div id="thread"></div>
 </div>
+<div class="drop" id="drop">Drop a bundle to verify it in your browser</div>
 <div class="ask"><form id="f"><input id="q" placeholder="Ask anything…" autocomplete="off"><button id="go" aria-label="Ask">
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button></form></div>
+<script src="/static/noble-hashes.min.js"></script>
+<script src="/static/arcverify.js"></script>
+<script src="/static/ui.js"></script>
 <script>
-const $=s=>document.querySelector(s), esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-const ICON={ok:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
-  bad:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>'};
-const DL='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>';
-const params=new URLSearchParams(location.search);
-const b64dec=s=>new TextDecoder().decode(Uint8Array.from(atob(s),c=>c.charCodeAt(0)));
-const b64enc=s=>{let r="";new TextEncoder().encode(s).forEach(x=>r+=String.fromCharCode(x));return btoa(r)};
-const bare=m=>String(m||"?").split("/").pop();
-
-fetch("/api/samples").then(r=>r.json()).then(s=>{
-  s.filter(x=>x.answerable).sort(()=>Math.random()-.5).slice(0,4).forEach(x=>{const c=document.createElement("span");c.className="chip";c.textContent=x.question;c.onclick=()=>{$("#q").value=x.question;ask()};$("#chips").appendChild(c)});
+const $ = (s) => document.querySelector(s), thread = $("#thread");
+VUI.initFileInput(thread, $("#file"), $("#drop"));
+fetch("/api/samples").then((r) => r.json()).then((s) => {
+  s.filter((x) => x.answerable).sort(() => Math.random() - 0.5).slice(0, 4).forEach((x) => {
+    const c = document.createElement("span"); c.className = "chip"; c.textContent = x.question; c.onclick = () => { $("#q").value = x.question; ask(); }; $("#chips").appendChild(c); });
 });
-$("#f").onsubmit=e=>{e.preventDefault();ask()};
-
-function newTurn(q){
-  $("#chips").style.display="none";
-  const t=document.createElement("div");t.className="turn";
-  t.innerHTML=`<div class="q">${esc(q)}</div><div class="body"><div class="loading"><i></i><i></i><i></i></div></div>`;
-  $("#thread").prepend(t);return t;
+$("#f").onsubmit = (e) => { e.preventDefault(); ask(); };
+async function ask() {
+  const q = $("#q").value.trim(); if (!q) return; $("#q").value = ""; $("#go").disabled = true; $("#chips").style.display = "none";
+  const t = VUI.newTurn(thread, q);
+  try { const r = await fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: q }) });
+    const j = await r.json(); if (!r.ok) throw new Error(j.detail || r.status); VUI.render(t, j.bundle);
+  } catch (e) { t.querySelector(".body").innerHTML = `<div class="err">${VUI.esc(e.message)}</div>`; }
+  $("#go").disabled = false;
 }
-async function ask(){
-  const q=$("#q").value.trim(); if(!q) return; $("#q").value=""; $("#go").disabled=true;
-  const t=newTurn(q);
-  try{const r=await fetch("/api/ask",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({question:q})});
-    const j=await r.json(); if(!r.ok) throw new Error(j.detail||r.status); render(t,j.bundle);
-  }catch(e){t.querySelector(".body").innerHTML=`<div class="err">${esc(e.message)}</div>`}
-  $("#go").disabled=false;
-}
-
-function render(t,b){
-  const idk=/^i don.?t know/i.test(b.answer||"");
-  const body=t.querySelector(".body");
-  body.innerHTML=`<p class="a ${idk?"idk":""}">${esc(b.answer)}</p>
-    <div class="bar">${b.citations.map((c,i)=>`<span class="cite" data-i="${i}">${c.id}</span>`).join("")}
-      <span class="sp"></span>
-      <span class="menu"><span data-m="char">passage</span><span data-m="answer">answer</span><span data-m="prompt">prompt</span><span data-m="model">model</span></span>
-      <button class="icon" data-a="tamper" title="Tamper with a copy">tamper</button>
-      <button class="icon" data-a="dl" title="Download bundle">${DL}</button>
-      <button class="btn" data-a="verify">Verify</button></div>
-    <div class="ptx"></div><div class="vf"></div>`;
-  body.querySelectorAll(".cite").forEach(el=>el.onclick=()=>{
-    const on=el.classList.toggle("on"); body.querySelectorAll(".cite").forEach(o=>o!==el&&o.classList.remove("on"));
-    body.querySelector(".ptx").innerHTML=on?`<div class="ptext">${esc(b.citations[+el.dataset.i].text)}</div>`:"";});
-  body.querySelector('[data-a=dl]').onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(b,null,1)],{type:"application/json"}));a.download=`bundle_${b.inference.answer_id.slice(2,12)}.json`;a.click()};
-  body.querySelector('[data-a=verify]').onclick=()=>verify(body,b,false);
-  body.querySelector('[data-a=tamper]').onclick=()=>body.querySelector(".menu").classList.toggle("on");
-  body.querySelectorAll('[data-m]').forEach(el=>el.onclick=()=>{body.querySelector(".menu").classList.remove("on");verify(body,tamper(b,el.dataset.m),true)});
-}
-function tamper(b,mode){
-  const t=structuredClone(b);
-  if(mode==="char"&&t.citations.length){const c=t.citations[0];const i=Math.floor(c.text.length/2);c.text=c.text.slice(0,i)+(c.text[i]==="x"?"y":"x")+c.text.slice(i+1);t._t=`one character of ${c.id}`}
-  else if(mode==="answer"){t.answer=t.answer+" (edited)";t._t="the answer"}
-  else if(mode==="model"){const raw=b64dec(t.inference.response_body_b64);
-    t.inference.response_body_b64=b64enc(raw.replace(/"model":"[^"]*"/,'"model":"meta-llama/llama-3.1-8b-instruct"'));t._t="served model"}
-  else {t.inference.request_body=t.inference.request_body.replace("[P1] ","[P1] Note: ");t._t="the prompt"}
-  return t;
-}
-
-/* ---------- verification diagram ---------- */
-const EXP="https://explorer.testnet.arc.io";
-function srcReason(rs){const r=(rs||[]).join(" ");
-  if(/altered/.test(r))return"text was changed: its hash no longer matches the chain";
-  if(/NOT registered/i.test(r))return"not registered on-chain";
-  if(/trust/i.test(r))return"publisher is not trusted";
-  return rs&&rs[0]||"source check failed";}
-function build(b,v){
-  const mc=v?v.model_call:[], f=(re)=>mc.filter(x=>re.test(x.check)), ok=a=>a.every(x=>x.ok);
-  const inf=b.inference, head=v?v.header.every(x=>x.ok):true;
-  const nodes=[{k:"q",lbl:"Question",sub:"Arc testnet",ok:head,why:"wrong network or contract",
-     det:`question_id ${inf.question_id}<br>chain ${b.chain_id} · registry <a target=_blank href="${EXP}/address/${b.contract}">${b.contract}</a>`}];
-  const srcs=b.citations.map((c,i)=>{const r=v&&v.citations[i]; const inPrompt=f(new RegExp(`^M3 cited ${c.id} `));
-    const good=r?(r.status==="PASS"&&ok(inPrompt)):true;
-    return {k:"s"+i,lbl:c.id,sub:"on-chain · trusted",ok:good,why:`${c.id}: `+(r&&r.status!=="PASS"?srcReason(r.reasons):"text was not in the committed prompt"),
-      det:`<div class="t">${esc(c.text)}</div>sha256 ${c.content_hash}<br>CID ${c.cid}<br>publisher <a target=_blank href="${EXP}/address/${c.registrant}">${c.registrant}</a><br>registered <a target=_blank href="${c.explorer.tx}">${(c.registration_tx||"").slice(0,18)}…</a> · block ${c.block_number}`,
-      href:c.explorer.tx}});
-  const pChecks=f(/^M1|^M2|^M3 (passages|passagesRoot)/).filter(x=>!/^M2 model/.test(x.check));
-  const prompt={k:"p",lbl:"Prompt",sub:"block "+inf.commit_block,ok:ok(pChecks),href:inf.explorer.commit,
-     why:"prompt: "+(f(/^M2 sha256/).some(x=>!x.ok)?"bytes differ from the hash committed on-chain":"does not match the on-chain commit"),
-     det:`request sha256 ${inf.request_hash}<br>passages root ${inf.passages_root}<br>commit <a target=_blank href="${inf.explorer.commit}">${inf.commit_tx.slice(0,18)}…</a> · block ${inf.commit_block}`};
-  const md=v&&v.model, mOk=ok(f(/^M2 model|^M4 sha256|^M6/));
-  const model={k:"m",lbl:bare(inf.model),wide:1,ok:mOk,href:inf.explorer.commit,
-     sub:md?`served ${bare(md.served)} · ${md.provider||"?"}`:"requested",
-     why:"model: "+(md&&!md.match?`requested ${bare(md.requested)}, served ${bare(md.served)}`
-        :f(/^M4 sha256/).some(x=>!x.ok)?"response bytes don't match the on-chain hash":"differs from the model committed on-chain"),
-     det:`requested ${esc(inf.model)} · sha256 committed on-chain<br>served ${esc(md?md.served:"")} · provider ${esc(md?md.provider:"")}<br>served model and provider are self-reported by the provider inside the hashed response`};
-  const aChecks=f(/^M4|^M5/);
-  const answer={k:"a",lbl:"Answer",sub:"block "+inf.finalize_block,ok:ok(aChecks),href:inf.explorer.finalize,
-     why:"answer: "+(f(/^M4 bundle answer/).some(x=>!x.ok)?"differs from the response logged on-chain":"does not match the on-chain finalize"),
-     det:`response sha256 ${inf.response_hash}<br>model ${esc(inf.model)}<br>finalize <a target=_blank href="${inf.explorer.finalize}">${inf.finalize_tx.slice(0,18)}…</a> · block ${inf.finalize_block}`};
-  return [[nodes[0]],srcs.length?srcs:[{k:"s",lbl:"Sources",sub:"none cited",ok:true,det:"no passages cited"}],[prompt],[model],[answer]];
-}
-function nodeHTML(n){return `<div class="node wait${n.wide?" wide":""}" data-k="${n.k}" title="click for details"><div class="dot"></div><div class="lbl">${n.lbl}</div><div class="sub">${n.sub}</div></div>`}
-async function verify(body,b,tampered){
-  body.querySelector(".ptx").innerHTML="";
-  const vf=body.querySelector(".vf");
-  const cols0=build(b,null);
-  vf.innerHTML=`<div class="flow">${cols0.map((c,i)=>(i?`<div class="link" data-l="${i}"></div>`:"")+`<div class="col">${c.map(nodeHTML).join("")}</div>`).join("")}</div>
-    <div class="why"></div><div class="det"></div>`;
-  let v; try{const r=await fetch("/api/verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({bundle:b})});
-    v=await r.json(); if(!r.ok) throw new Error(v.detail||r.status);}catch(e){vf.querySelector(".why").textContent=e.message;return}
-  const cols=build(b,v), all=cols.flat(), byk=Object.fromEntries(all.map(n=>[n.k,n]));
-  vf.querySelectorAll(".node").forEach(el=>el.onclick=()=>{const d=vf.querySelector(".det");const n=byk[el.dataset.k];d.innerHTML=d.dataset.k===n.k&&d.innerHTML?"":n.det;d.dataset.k=d.innerHTML?n.k:""});
-  let firstBad=null;
-  for(let i=0;i<cols.length;i++){
-    if(i){const l=vf.querySelector(`[data-l="${i}"]`);l.classList.add(cols[i-1].every(n=>n.ok)?"ok":"bad");await sleep(320)}
-    for(const n of cols[i]){const el=vf.querySelector(`[data-k="${n.k}"]`);el.classList.remove("wait");el.classList.add(n.ok?"ok":"bad");
-      el.querySelector(".dot").innerHTML=n.ok?ICON.ok:ICON.bad; if(!n.ok&&n.k[0]==="s")el.querySelector(".sub").textContent="not verified"; if(n.k==="m")el.querySelector(".sub").textContent=n.sub; if(!n.ok&&!firstBad)firstBad=n; await sleep(220)}
-  }
-  const why=vf.querySelector(".why");
-  if(firstBad){why.className="why";why.innerHTML=esc(firstBad.why)+(tampered?`<span class="tag">tampered ${esc(b._t||"copy")}</span>`:"")}
-  else{why.className="why okk";why.textContent="Verified on Arc"}
-}
-
-/* ?demo=answer|verify|tamper renders the bundled example without spending anything */
-if(params.get("demo")) fetch("/api/example").then(r=>r.json()).then(async b=>{
-  const t=newTurn(b.question); render(t,b); const body=t.querySelector(".body"), m=params.get("demo");
-  if(m==="cite") body.querySelector(".cite").click();
-  if(m==="verify") verify(body,b,false);
-  if(m==="tamper") verify(body,tamper(b,"char"),true);
-  if(m==="model") verify(body,tamper(b,"model"),true);
+/* ?demo=answer|cite|verify|tamper|model|evidence renders the saved example bundle without spending anything */
+const demo = new URLSearchParams(location.search).get("demo");
+if (demo) fetch("/api/example").then((r) => r.json()).then(async (b) => {
+  $("#chips").style.display = "none";
+  const t = VUI.newTurn(thread, b.question), body = VUI.render(t, b);
+  if (demo === "cite") body.querySelector(".cite").click();
+  if (demo === "verify") VUI.verify(body, b, false);
+  if (demo === "tamper") VUI.verify(body, ArcVerify.tamper(b, "char"), true);
+  if (demo === "model") VUI.verify(body, ArcVerify.tamper(b, "model"), true);
+  if (demo === "evidence") { await VUI.verify(body, b, false); body.querySelector('[data-k="s0"]').click(); body.querySelector(".rpc").open = true; }
 });
 </script>
 </body>

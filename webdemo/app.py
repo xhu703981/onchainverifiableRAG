@@ -6,6 +6,7 @@ from pathlib import Path
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import verify_citations as vc
@@ -28,9 +29,17 @@ class Verify(BaseModel):
     bundle: dict
 
 
+app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
+
+
 @app.get("/")
 def index():
     return FileResponse(HERE / "static" / "index.html")
+
+
+@app.get("/verify.html")
+def standalone_verifier():
+    return FileResponse(HERE / "verify.html")
 
 
 @app.get("/api/health")
@@ -60,6 +69,7 @@ def ask(a: Ask):
         raise HTTPException(500, f"{type(e).__name__}: {e}")
 
 
+# Server-side reference verifier (the web page does NOT use it; it verifies in the browser).
 @app.post("/api/verify")
 def verify(v: Verify):
     try:

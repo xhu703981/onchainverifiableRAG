@@ -1,0 +1,622 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Verify an answer bundle · Arc testnet</title>
+<!-- Standalone verifier. Everything below is inlined; the only network requests go to https://rpc.testnet.arc.io -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; connect-src https://rpc.testnet.arc.io">
+<style>
+:root{--bg:#fcfcfb;--ink:#26231f;--soft:#8a847c;--faint:#c9c4bd;--line:#ecebe8;--ok:#1f9d55;--bad:#d64545;--pend:#d9d6d1;--mono:ui-monospace,"Cascadia Mono",Consolas,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:300 15px/1.6 "Inter","Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+.wrap{max-width:780px;margin:0 auto;padding:72px 28px 180px}
+.top{display:flex;align-items:baseline;margin:0 0 56px}
+h1{font-weight:300;font-size:20px;letter-spacing:.02em;margin:0;color:var(--soft);flex:1}
+h1 b{font-weight:500;color:var(--ink)}
+.file{font-size:12.5px;color:var(--faint);cursor:pointer;border:0;background:none;font-family:inherit}
+.file:hover{color:var(--ink)}
+.chips{display:flex;flex-wrap:wrap;gap:6px 18px;margin-bottom:40px}
+.chip{font-size:13px;color:var(--soft);cursor:pointer;border-bottom:1px solid transparent}
+.chip:hover{color:var(--ink);border-color:var(--faint)}
+.turn{margin-bottom:72px;animation:fade .5s ease}
+.q{font-size:14px;color:var(--soft);margin-bottom:10px}
+.a{font-size:30px;font-weight:300;letter-spacing:-.01em;line-height:1.25;margin:0 0 18px}
+.a.idk{color:var(--soft)}
+.loading{display:inline-flex;gap:6px;padding:16px 0}
+.loading i{width:6px;height:6px;border-radius:50%;background:var(--faint);animation:pulse 1.2s infinite}
+.loading i:nth-child(2){animation-delay:.2s}.loading i:nth-child(3){animation-delay:.4s}
+.bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cite{font-size:12px;font-weight:500;color:var(--soft);border:1px solid var(--line);border-radius:999px;padding:2px 10px;cursor:pointer;background:#fff}
+.cite:hover,.cite.on{color:var(--ink);border-color:var(--faint)}
+.sp{flex:1}
+.btn{font:inherit;font-size:13px;font-weight:400;border:1px solid var(--ink);background:var(--ink);color:#fff;border-radius:999px;padding:5px 16px;cursor:pointer}
+.icon{border:0;background:none;color:var(--faint);cursor:pointer;padding:4px;display:inline-flex;font:inherit;font-size:13px}
+.icon:hover{color:var(--ink)}
+.menu{display:none;gap:14px;font-size:12.5px;color:var(--soft)}
+.menu.on{display:inline-flex}
+.menu span{cursor:pointer}.menu span:hover{color:var(--bad)}
+.ptext{font-size:13.5px;color:#5b5650;margin:16px 0 0;padding-left:14px;border-left:2px solid var(--line);white-space:pre-wrap;animation:fade .3s}
+/* diagram */
+.flow{margin-top:36px;display:flex;align-items:center;animation:fade .4s}
+.col{display:flex;flex-direction:column;gap:18px;align-items:center}
+.link{flex:1;height:1px;background:var(--line);min-width:18px;position:relative;overflow:hidden}
+.link::after{content:"";position:absolute;inset:0;background:var(--ok);transform:scaleX(0);transform-origin:left;transition:transform .45s ease}
+.link.ok::after{transform:scaleX(1)}
+.link.bad::after{background:var(--bad);transform:scaleX(1)}
+.node{display:flex;flex-direction:column;align-items:center;gap:7px;cursor:pointer;width:84px;border-radius:12px;padding:4px 0}
+.node.wide{width:150px}
+.node.sel{background:#f4f3f1}
+.dot{width:38px;height:38px;border-radius:50%;border:1.5px solid var(--pend);display:grid;place-items:center;background:#fff;transition:all .35s ease}
+.dot svg{width:18px;height:18px;opacity:0;transform:scale(.4);transition:all .35s cubic-bezier(.3,1.6,.6,1)}
+.node.wait .dot{animation:pulse 1.2s infinite}
+.node.ok .dot{border-color:var(--ok);background:#effaf3;color:var(--ok)}
+.node.bad .dot{border-color:var(--bad);background:#fdf0f0;color:var(--bad)}
+.node.ok .dot svg,.node.bad .dot svg{opacity:1;transform:scale(1)}
+.lbl{font-size:12.5px;font-weight:400}
+.sub{font-size:11px;color:var(--faint);margin-top:-6px;white-space:nowrap}
+.why{margin-top:22px;font-size:13.5px;color:var(--bad);min-height:20px}
+.why.okk{color:var(--ok)}
+.how{font-size:11.5px;color:var(--faint);margin-top:2px}
+.tag{font-size:11px;color:var(--bad);border:1px solid #f3cccc;border-radius:999px;padding:1px 8px;margin-left:8px}
+/* evidence panel */
+.det{margin-top:18px;border-top:1px solid var(--line);padding-top:14px;animation:fade .25s;font-size:12.5px}
+.det h4{font-weight:500;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin:14px 0 6px}
+.det h4:first-child{margin-top:0}
+.ck{display:flex;gap:8px;padding:1px 0;color:#5b5650}
+.ck b{font-weight:600;width:12px;flex:none}.ck.ok b{color:var(--ok)}.ck.bad b{color:var(--bad)}
+.ck .d{color:var(--faint)}
+.cmp{display:grid;grid-template-columns:72px 1fr;gap:0 10px;font:11.5px/1.7 var(--mono);color:var(--soft);margin:6px 0 10px;word-break:break-all}
+.cmp .k{color:var(--faint)}
+.cmp .lab2{grid-column:1/3;font-family:"Inter","Segoe UI",sans-serif;color:var(--soft)}
+.cmp .m{grid-column:2;font-family:inherit}
+.pill{display:inline-block;font:500 10.5px/1.4 "Inter","Segoe UI",sans-serif;border-radius:999px;padding:0 7px;margin-left:6px}
+.pill.ok{background:#effaf3;color:var(--ok)}.pill.bad{background:#fdf0f0;color:var(--bad)}
+.hl-ok{color:var(--ok)}.hl-bad{color:var(--bad)}
+.cmp .cmd{color:var(--faint)}
+.rpc{border:1px solid var(--line);border-radius:10px;margin:6px 0;background:#fff}
+.rpc summary{list-style:none;cursor:pointer;display:flex;gap:10px;align-items:center;padding:6px 10px;font:11.5px var(--mono);color:#5b5650}
+.rpc summary::-webkit-details-marker{display:none}
+.rpc summary .ms{color:var(--faint);margin-left:auto}
+.rpc .x{padding:0 10px 10px}
+.rpc pre{margin:6px 0;max-height:150px;overflow:auto;background:#faf9f7;border-radius:8px;padding:8px 10px;font:11px/1.5 var(--mono);color:#5b5650;white-space:pre-wrap;word-break:break-all}
+.rpc .lab{font-size:10.5px;color:var(--faint);text-transform:uppercase;letter-spacing:.08em}
+.cast{display:flex;gap:8px;align-items:flex-start}
+.cast pre{flex:1;background:#26231f;color:#f2efe9}
+.copy,.ext{font:11px "Inter","Segoe UI",sans-serif;color:var(--soft);border:1px solid var(--line);background:#fff;border-radius:999px;padding:2px 9px;cursor:pointer;text-decoration:none;white-space:nowrap}
+.copy:hover,.ext:hover{color:var(--ink);border-color:var(--faint)}
+.ask{position:fixed;left:0;right:0;bottom:0;padding:30px 28px 32px;background:linear-gradient(rgba(252,252,251,0),var(--bg) 35%)}
+.ask form{max-width:780px;margin:0 auto;position:relative}
+.ask input{width:100%;font:inherit;font-size:16px;padding:15px 54px 15px 20px;border:1px solid var(--line);border-radius:999px;background:#fff;outline:none;box-shadow:0 2px 14px rgba(0,0,0,.04)}
+.ask input:focus{border-color:var(--faint)}
+.ask button{position:absolute;right:7px;top:7px;width:38px;height:38px;border-radius:50%;border:0;background:var(--ink);color:#fff;cursor:pointer;display:grid;place-items:center}
+.ask button:disabled{opacity:.3}
+.err{color:var(--bad);font-size:13px}
+.drop{position:fixed;inset:0;background:rgba(252,252,251,.92);display:none;place-items:center;font-size:15px;color:var(--soft);z-index:9;border:2px dashed var(--faint)}
+.drop.on{display:grid}
+.zone{border:1.5px dashed var(--faint);border-radius:18px;padding:64px 20px;text-align:center;color:var(--soft);cursor:pointer;font-size:14px}
+.zone:hover{border-color:var(--soft);color:var(--ink)}
+@keyframes pulse{0%,100%{opacity:.35}50%{opacity:1}}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><h1><b>Verify</b> an answer</h1></div>
+  <div class="zone" id="zone">Drop an answer bundle (.json) here, or click to choose a file
+    <div class="how" style="margin-top:8px">runs entirely in this page · talks only to rpc.testnet.arc.io</div></div>
+  <div id="thread" style="margin-top:48px"></div>
+</div>
+<div class="drop" id="drop">Drop to verify</div>
+<script>
+/*! @noble/hashes v1.8.0 (MIT) - https://github.com/paulmillr/noble-hashes - keccak_256 + sha256 only, bundled with esbuild into globalThis.nobleHashes. Vendored locally: no CDN. */
+(()=>{var H=(e,t)=>()=>(e&&(t=e(e=0)),t);var nt=(e,t)=>()=>(t||e((t={exports:{}}).exports,t),t.exports);function ot(e,t=!1){return t?{h:Number(e&L),l:Number(e>>G&L)}:{h:Number(e>>G&L)|0,l:Number(e&L)|0}}function V(e,t=!1){let s=e.length,o=new Uint32Array(s),r=new Uint32Array(s);for(let i=0;i<s;i++){let{h:n,l:c}=ot(e[i],t);[o[i],r[i]]=[n,c]}return[o,r]}var L,G,M,W,X,j,N=H(()=>{L=BigInt(4294967295),G=BigInt(32);M=(e,t,s)=>e<<s|t>>>32-s,W=(e,t,s)=>t<<s|e>>>32-s,X=(e,t,s)=>t<<s-32|e>>>64-s,j=(e,t,s)=>e<<s-32|t>>>64-s});function rt(e){return e instanceof Uint8Array||ArrayBuffer.isView(e)&&e.constructor.name==="Uint8Array"}function F(e){if(!Number.isSafeInteger(e)||e<0)throw new Error("positive integer expected, got "+e)}function y(e,...t){if(!rt(e))throw new Error("Uint8Array expected");if(t.length>0&&!t.includes(e.length))throw new Error("Uint8Array expected of length "+t+", got length="+e.length)}function A(e,t=!0){if(e.destroyed)throw new Error("Hash instance has been destroyed");if(t&&e.finished)throw new Error("Hash#digest() has already been called")}function _(e,t){y(e);let s=t.outputLen;if(e.length<s)throw new Error("digestInto() expects output buffer of length at least "+s)}function R(e){return new Uint32Array(e.buffer,e.byteOffset,Math.floor(e.byteLength/4))}function b(...e){for(let t=0;t<e.length;t++)e[t].fill(0)}function I(e){return new DataView(e.buffer,e.byteOffset,e.byteLength)}function d(e,t){return e<<32-t|e>>>t}function ct(e){return e<<24&4278190080|e<<8&16711680|e>>>8&65280|e>>>24&255}function ht(e){for(let t=0;t<e.length;t++)e[t]=ct(e[t]);return e}function ft(e){if(typeof e!="string")throw new Error("string expected");return new Uint8Array(new TextEncoder().encode(e))}function B(e){return typeof e=="string"&&(e=ft(e)),y(e),e}function S(e){let t=o=>e().update(B(o)).digest(),s=e();return t.outputLen=s.outputLen,t.blockLen=s.blockLen,t.create=()=>e(),t}var it,O,w,k=H(()=>{/*! noble-hashes - MIT License (c) 2022 Paul Miller (paulmillr.com) */it=new Uint8Array(new Uint32Array([287454020]).buffer)[0]===68;O=it?e=>e:ht;w=class{}});function gt(e,t=24){let s=new Uint32Array(10);for(let o=24-t;o<24;o++){for(let n=0;n<10;n++)s[n]=e[n]^e[n+10]^e[n+20]^e[n+30]^e[n+40];for(let n=0;n<10;n+=2){let c=(n+8)%10,f=(n+2)%10,a=s[f],x=s[f+1],h=K(a,x,1)^s[c],g=P(a,x,1)^s[c+1];for(let u=0;u<50;u+=10)e[n+u]^=h,e[n+u+1]^=g}let r=e[2],i=e[3];for(let n=0;n<24;n++){let c=q[n],f=K(r,i,c),a=P(r,i,c),x=J[n];r=e[x],i=e[x+1],e[x]=f,e[x+1]=a}for(let n=0;n<50;n+=10){for(let c=0;c<10;c++)s[c]=e[n+c];for(let c=0;c<10;c++)e[n+c]^=~s[(c+2)%10]&s[(c+4)%10]}e[0]^=bt[o],e[1]^=pt[o]}b(s)}var at,m,xt,ut,dt,lt,J,q,z,Q,bt,pt,K,P,C,yt,Y,Z=H(()=>{N();k();at=BigInt(0),m=BigInt(1),xt=BigInt(2),ut=BigInt(7),dt=BigInt(256),lt=BigInt(113),J=[],q=[],z=[];for(let e=0,t=m,s=1,o=0;e<24;e++){[s,o]=[o,(2*s+3*o)%5],J.push(2*(5*o+s)),q.push((e+1)*(e+2)/2%64);let r=at;for(let i=0;i<7;i++)t=(t<<m^(t>>ut)*lt)%dt,t&xt&&(r^=m<<(m<<BigInt(i))-m);z.push(r)}Q=V(z,!0),bt=Q[0],pt=Q[1],K=(e,t,s)=>s>32?X(e,t,s):M(e,t,s),P=(e,t,s)=>s>32?j(e,t,s):W(e,t,s);C=class e extends w{constructor(t,s,o,r=!1,i=24){if(super(),this.pos=0,this.posOut=0,this.finished=!1,this.destroyed=!1,this.enableXOF=!1,this.blockLen=t,this.suffix=s,this.outputLen=o,this.enableXOF=r,this.rounds=i,F(o),!(0<t&&t<200))throw new Error("only keccak-f1600 function is supported");this.state=new Uint8Array(200),this.state32=R(this.state)}clone(){return this._cloneInto()}keccak(){O(this.state32),gt(this.state32,this.rounds),O(this.state32),this.posOut=0,this.pos=0}update(t){A(this),t=B(t),y(t);let{blockLen:s,state:o}=this,r=t.length;for(let i=0;i<r;){let n=Math.min(s-this.pos,r-i);for(let c=0;c<n;c++)o[this.pos++]^=t[i++];this.pos===s&&this.keccak()}return this}finish(){if(this.finished)return;this.finished=!0;let{state:t,suffix:s,pos:o,blockLen:r}=this;t[o]^=s,(s&128)!==0&&o===r-1&&this.keccak(),t[r-1]^=128,this.keccak()}writeInto(t){A(this,!1),y(t),this.finish();let s=this.state,{blockLen:o}=this;for(let r=0,i=t.length;r<i;){this.posOut>=o&&this.keccak();let n=Math.min(o-this.posOut,i-r);t.set(s.subarray(this.posOut,this.posOut+n),r),this.posOut+=n,r+=n}return t}xofInto(t){if(!this.enableXOF)throw new Error("XOF is not possible for this instance");return this.writeInto(t)}xof(t){return F(t),this.xofInto(new Uint8Array(t))}digestInto(t){if(_(t,this),this.finished)throw new Error("digest() was already called");return this.writeInto(t),this.destroy(),t}digest(){return this.digestInto(new Uint8Array(this.outputLen))}destroy(){this.destroyed=!0,b(this.state)}_cloneInto(t){let{blockLen:s,suffix:o,outputLen:r,rounds:i,enableXOF:n}=this;return t||(t=new e(s,o,r,n,i)),t.state32.set(this.state32),t.pos=this.pos,t.posOut=this.posOut,t.finished=this.finished,t.rounds=i,t.suffix=o,t.outputLen=r,t.enableXOF=n,t.destroyed=this.destroyed,t}},yt=(e,t,s)=>S(()=>new C(t,e,s)),Y=yt(1,136,256/8)});function wt(e,t,s,o){if(typeof e.setBigUint64=="function")return e.setBigUint64(t,s,o);let r=BigInt(32),i=BigInt(4294967295),n=Number(s>>r&i),c=Number(s&i),f=o?4:0,a=o?0:4;e.setUint32(t+f,n,o),e.setUint32(t+a,c,o)}function $(e,t,s){return e&t^~e&s}function v(e,t,s){return e&t^e&s^t&s}var U,l,tt=H(()=>{k();U=class extends w{constructor(t,s,o,r){super(),this.finished=!1,this.length=0,this.pos=0,this.destroyed=!1,this.blockLen=t,this.outputLen=s,this.padOffset=o,this.isLE=r,this.buffer=new Uint8Array(t),this.view=I(this.buffer)}update(t){A(this),t=B(t),y(t);let{view:s,buffer:o,blockLen:r}=this,i=t.length;for(let n=0;n<i;){let c=Math.min(r-this.pos,i-n);if(c===r){let f=I(t);for(;r<=i-n;n+=r)this.process(f,n);continue}o.set(t.subarray(n,n+c),this.pos),this.pos+=c,n+=c,this.pos===r&&(this.process(s,0),this.pos=0)}return this.length+=t.length,this.roundClean(),this}digestInto(t){A(this),_(t,this),this.finished=!0;let{buffer:s,view:o,blockLen:r,isLE:i}=this,{pos:n}=this;s[n++]=128,b(this.buffer.subarray(n)),this.padOffset>r-n&&(this.process(o,0),n=0);for(let h=n;h<r;h++)s[h]=0;wt(o,r-8,BigInt(this.length*8),i),this.process(o,0);let c=I(t),f=this.outputLen;if(f%4)throw new Error("_sha2: outputLen should be aligned to 32bit");let a=f/4,x=this.get();if(a>x.length)throw new Error("_sha2: outputLen bigger than state");for(let h=0;h<a;h++)c.setUint32(4*h,x[h],i)}digest(){let{buffer:t,outputLen:s}=this;this.digestInto(t);let o=t.slice(0,s);return this.destroy(),o}_cloneInto(t){t||(t=new this.constructor),t.set(...this.get());let{blockLen:s,buffer:o,length:r,finished:i,destroyed:n,pos:c}=this;return t.destroyed=n,t.finished=i,t.length=r,t.pos=c,r%s&&t.buffer.set(o),t}clone(){return this._cloneInto()}},l=Uint32Array.from([1779033703,3144134277,1013904242,2773480762,1359893119,2600822924,528734635,1541459225])});var At,p,D,et,st=H(()=>{tt();k();At=Uint32Array.from([1116352408,1899447441,3049323471,3921009573,961987163,1508970993,2453635748,2870763221,3624381080,310598401,607225278,1426881987,1925078388,2162078206,2614888103,3248222580,3835390401,4022224774,264347078,604807628,770255983,1249150122,1555081692,1996064986,2554220882,2821834349,2952996808,3210313671,3336571891,3584528711,113926993,338241895,666307205,773529912,1294757372,1396182291,1695183700,1986661051,2177026350,2456956037,2730485921,2820302411,3259730800,3345764771,3516065817,3600352804,4094571909,275423344,430227734,506948616,659060556,883997877,958139571,1322822218,1537002063,1747873779,1955562222,2024104815,2227730452,2361852424,2428436474,2756734187,3204031479,3329325298]),p=new Uint32Array(64),D=class extends U{constructor(t=32){super(64,t,8,!1),this.A=l[0]|0,this.B=l[1]|0,this.C=l[2]|0,this.D=l[3]|0,this.E=l[4]|0,this.F=l[5]|0,this.G=l[6]|0,this.H=l[7]|0}get(){let{A:t,B:s,C:o,D:r,E:i,F:n,G:c,H:f}=this;return[t,s,o,r,i,n,c,f]}set(t,s,o,r,i,n,c,f){this.A=t|0,this.B=s|0,this.C=o|0,this.D=r|0,this.E=i|0,this.F=n|0,this.G=c|0,this.H=f|0}process(t,s){for(let h=0;h<16;h++,s+=4)p[h]=t.getUint32(s,!1);for(let h=16;h<64;h++){let g=p[h-15],u=p[h-2],T=d(g,7)^d(g,18)^g>>>3,E=d(u,17)^d(u,19)^u>>>10;p[h]=E+p[h-7]+T+p[h-16]|0}let{A:o,B:r,C:i,D:n,E:c,F:f,G:a,H:x}=this;for(let h=0;h<64;h++){let g=d(c,6)^d(c,11)^d(c,25),u=x+g+$(c,f,a)+At[h]+p[h]|0,E=(d(o,2)^d(o,13)^d(o,22))+v(o,r,i)|0;x=a,a=f,f=c,c=n+u|0,n=i,i=r,r=o,o=u+E|0}o=o+this.A|0,r=r+this.B|0,i=i+this.C|0,n=n+this.D|0,c=c+this.E|0,f=f+this.F|0,a=a+this.G|0,x=x+this.H|0,this.set(o,r,i,n,c,f,a,x)}roundClean(){b(p)}destroy(){this.set(0,0,0,0,0,0,0,0),b(this.buffer)}},et=S(()=>new D)});var Ht=nt(()=>{Z();st();globalThis.nobleHashes={keccak_256:Y,sha256:et}});Ht();})();
+
+</script>
+<script>
+/* ArcVerify: in-browser port of verify_citations.py. It talks only to a public Arc RPC.
+   No server of ours is involved: hashes are recomputed locally (WebCrypto SHA-256, noble keccak-256),
+   and every on-chain fact comes from JSON-RPC calls made directly from this page. */
+(function (G) {
+  "use strict";
+  const RPC_URL = "https://rpc.testnet.arc.io";
+  const CHAIN_ID = 5042002;
+  const EXPLORER = "https://explorer.testnet.arc.io";
+  const enc = new TextEncoder();
+  const N = () => G.nobleHashes;
+
+  // ---------- bytes / hex ----------
+  const toHex = (u8) => Array.from(u8, (x) => x.toString(16).padStart(2, "0")).join("");
+  const fromHex = (h) => { h = h.replace(/^0x/, ""); const o = new Uint8Array(h.length / 2); for (let i = 0; i < o.length; i++) o[i] = parseInt(h.substr(2 * i, 2), 16); return o; };
+  const concat = (arrs) => { const n = arrs.reduce((s, a) => s + a.length, 0), o = new Uint8Array(n); let p = 0; for (const a of arrs) { o.set(a, p); p += a.length; } return o; };
+  const b64bytes = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+  async function sha256(u8) {
+    if (G.crypto && G.crypto.subtle) return "0x" + toHex(new Uint8Array(await G.crypto.subtle.digest("SHA-256", u8)));
+    return "0x" + toHex(N().sha256(u8)); // non-secure context fallback (same algorithm, vendored)
+  }
+  const shaStr = (s) => sha256(enc.encode(s));
+  const keccakHex = (s) => toHex(N().keccak_256(enc.encode(s)));
+
+  // selectors and event topics are derived here from their signatures (not trusted constants)
+  const SIGS = {
+    "isVerified(bytes32)": "(bool)", "getSource(bytes32)": "(bool,string,string,address,uint256)",
+    "isTrustedPublisher(address)": "(bool)", "owner()": "(address)", "registerBatch(bytes32[])": "",
+    "registerSource(bytes32,string,string)": "", "isLogger(address)": "(bool)",
+    "getRecord(bytes32)": "(bytes32,bytes32,bytes32,bytes32,bytes32,address,uint16,uint64,uint64,uint64,uint64)",
+    "commit(bytes32,bytes32,bytes32,bytes32,bytes32,uint16)": "", "finalize(bytes32,bytes32)": "",
+  };
+  const SEL = {}; for (const s in SIGS) SEL[s] = keccakHex(s).slice(0, 8);
+  const SEL2SIG = {}; for (const s in SEL) SEL2SIG[SEL[s]] = s;
+  const EVENTS = {
+    BATCH: "BatchRegistered(address,uint256,uint256,uint256)", SINGLE: "SourceRegistered(bytes32,string,address,uint256)",
+    COMMITTED: "Committed(bytes32,bytes32,bytes32,bytes32,bytes32,uint16,address,uint256)", FINALIZED: "Finalized(bytes32,bytes32,address,uint256)",
+  };
+  const TOPIC = {}; for (const k in EVENTS) TOPIC[k] = "0x" + keccakHex(EVENTS[k]);
+
+  // ---------- ABI words ----------
+  const word = (b, i) => b.slice(32 * i, 32 * i + 32);
+  const asInt = (b) => { let x = 0n; for (const v of b) x = (x << 8n) | BigInt(v); return x; };
+  const asAddr = (b) => "0x" + toHex(b.slice(-20));
+  const dynString = (b, off) => { const n = Number(asInt(b.slice(off, off + 32))); return new TextDecoder().decode(b.slice(off + 32, off + 32 + n)); };
+  const padAddr = (a) => a.toLowerCase().replace(/^0x/, "").padStart(64, "0");
+  const B32 = "abcdefghijklmnopqrstuvwxyz234567";
+  function cidV1Raw(digestHex) {
+    const b = concat([fromHex("01551220"), fromHex(digestHex)]); let bits = 0, val = 0, out = "b";
+    for (const x of b) { val = (val << 8) | x; bits += 8; while (bits >= 5) { out += B32[(val >>> (bits - 5)) & 31]; bits -= 5; } }
+    if (bits > 0) out += B32[(val << (5 - bits)) & 31];
+    return out;
+  }
+  function hashesInCalldata(inp) {
+    const data = fromHex(inp), sel = toHex(data.slice(0, 4)), args = data.slice(4);
+    if (sel === SEL["registerBatch(bytes32[])"]) {
+      const off = Number(asInt(word(args, 0))), n = Number(asInt(args.slice(off, off + 32))), hs = [];
+      for (let i = 0; i < n; i++) hs.push("0x" + toHex(args.slice(off + 32 + 32 * i, off + 64 + 32 * i)));
+      return ["registerBatch", hs];
+    }
+    if (sel === SEL["registerSource(bytes32,string,string)"]) return ["registerSource", ["0x" + toHex(word(args, 0))]];
+    return ["unknown(0x" + sel + ")", []];
+  }
+
+  // ---------- canonical JSON exactly like Python json.dumps(sort_keys, (",",":"), ensure_ascii=False) ----------
+  function canonical(v) {
+    if (v === null) return "null";
+    if (Array.isArray(v)) return "[" + v.map(canonical).join(",") + "]";
+    if (typeof v === "object") return "{" + Object.keys(v).sort().map((k) => JSON.stringify(k) + ":" + canonical(v[k])).join(",") + "}";
+    return JSON.stringify(v);
+  }
+  const PASSAGE_RE = /\[(P\d+)\] ([\s\S]*?)(?=\n\n\[P\d+\] |\n\nQuestion: )/g;
+  const VERSION_SUFFIX = "-(\\d{4}-\\d{2}-\\d{2}|\\d{8}|\\d{4}|latest)";
+  const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  function modelMatch(requested, served) {
+    const rq = (requested || "").trim().toLowerCase(), sv = (served || "").trim().toLowerCase();
+    if (!rq || !sv) return [false, "mismatch"];
+    if (rq === sv) return [true, "exact"];
+    const sp = (s) => { const i = s.lastIndexOf("/"); return i < 0 ? ["", s] : [s.slice(0, i), s.slice(i + 1)]; };
+    const [rv, rn] = sp(rq), [svv, sn] = sp(sv);
+    if (rv && svv && rv !== svv) return [false, "mismatch"];
+    if (rn === sn) return [true, "exact"];
+    if (new RegExp("^" + reEsc(rn) + VERSION_SUFFIX + "$").test(sn)) return [true, "version"];
+    return [false, "mismatch"];
+  }
+  function servedModel(respBytes) {
+    try { const r = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(respBytes));
+      if (!r || typeof r !== "object" || Array.isArray(r)) throw 0;
+      return { served: r.model ?? null, provider: r.provider ?? null };
+    } catch (e) { return { served: null, provider: null }; }
+  }
+  const py = (x) => (x === null || x === undefined ? "None" : String(x));
+  const nn = (x) => (x === undefined ? null : x);
+  // Python repr() for the JSON values that appear in check details (str, list, dict, None, bool, number)
+  function pyRepr(v) {
+    v = nn(v);
+    if (v === null) return "None";
+    if (v === true) return "True"; if (v === false) return "False";
+    if (typeof v === "number") return Number.isInteger(v) ? String(v) : String(v);
+    if (typeof v === "string") {
+      const q = v.includes("'") && !v.includes('"') ? '"' : "'";
+      let o = ""; for (const ch of v) { const c = ch.codePointAt(0);
+        if (ch === "\\") o += "\\\\"; else if (ch === q) o += "\\" + q; else if (ch === "\n") o += "\\n"; else if (ch === "\r") o += "\\r"; else if (ch === "\t") o += "\\t";
+        else if (c < 0x20 || c === 0x7f) o += "\\x" + c.toString(16).padStart(2, "0"); else o += ch; }
+      return q + o + q;
+    }
+    if (Array.isArray(v)) return "[" + v.map(pyRepr).join(", ") + "]";
+    return "{" + Object.keys(v).map((k) => pyRepr(k) + ": " + pyRepr(v[k])).join(", ") + "}";
+  }
+  const deq = (a, b) => JSON.stringify(nn(a)) === JSON.stringify(nn(b));
+  function parseTs(s) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})\.(\d{1,6})Z$/.exec(s || "");
+    if (!m) throw new Error(`time data '${s}' does not match format`);
+    return Date.UTC(+m[1], m[2] - 1, +m[3], +m[4], +m[5], +m[6]) / 1000 + Number("0." + m[7]);
+  }
+
+  // ---------- cast / explorer helpers ----------
+  function castFor(method, params, rpc) {
+    const R = ` --rpc-url ${rpc}`;
+    if (method === "eth_chainId") return `cast chain-id${R}`;
+    if (method === "eth_getCode") return `cast code ${params[0]}${R}`;
+    if (method === "eth_getTransactionByHash") return `cast tx ${params[0]}${R}`;
+    if (method === "eth_getTransactionReceipt") return `cast receipt ${params[0]}${R}`;
+    if (method === "eth_getBlockByNumber") return `cast block ${parseInt(params[0], 16)}${R}`;
+    if (method === "eth_call") {
+      const d = params[0].data.replace(/^0x/, ""), sig = SEL2SIG[d.slice(0, 8)], arg = d.slice(8);
+      if (!sig) return `cast call ${params[0].to} ${params[0].data}${R}`;
+      let a = "";
+      if (arg) a = sig.includes("(address)") ? " 0x" + arg.slice(24) : " 0x" + arg;
+      return `cast call ${params[0].to} "${sig}${SIGS[sig]}"${a}${R}`;
+    }
+    return `cast rpc ${method} '${JSON.stringify(params)}'${R}`;
+  }
+  function explorerFor(method, params) {
+    if (method === "eth_getTransactionByHash") return `${EXPLORER}/tx/${params[0]}`;
+    if (method === "eth_getTransactionReceipt") return `${EXPLORER}/tx/${params[0]}?tab=logs`;
+    if (method === "eth_getBlockByNumber") return `${EXPLORER}/block/${parseInt(params[0], 16)}`;
+    if (method === "eth_call") return `${EXPLORER}/address/${params[0].to}?tab=read_contract`;
+    if (method === "eth_getCode") return `${EXPLORER}/address/${params[0]}?tab=contract`;
+    return null;
+  }
+
+  // ---------- verifier ----------
+  async function verifyBundle(b, opts = {}) {
+    const rpcUrl = opts.rpc || RPC_URL, evidence = {}, calls = [];
+    let tag = "net";
+    const ev = (t, item) => (evidence[t] = evidence[t] || []).push(item);
+    const cmp = (label, local, chain, extra) => ev(tag, { kind: "cmp", label, local, chain, ok: local === chain, ...extra });
+    async function rpc(method, params) {
+      const id = calls.length + 1, req = { jsonrpc: "2.0", id, method, params }, t0 = performance.now();
+      let out;
+      for (let attempt = 0; ; attempt++) { // the public RPC rate-limits bursts: back off and retry
+        const r = await fetch(rpcUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(req) });
+        out = r.status === 429 ? { error: { code: -32005, message: "rate limit exceeded" } } : await r.json();
+        if (!(out.error && out.error.code === -32005) || attempt >= 6) break;
+        await new Promise((ok) => setTimeout(ok, 400 * 2 ** attempt));
+      }
+      const item = { kind: "rpc", req, res: out, ms: Math.round(performance.now() - t0), cast: castFor(method, params, rpcUrl), href: explorerFor(method, params) };
+      calls.push(item); ev(tag, item); if (opts.onCall) opts.onCall(item);
+      if (out.error) throw new Error(`${method}: ${JSON.stringify(out.error)}`);
+      return out.result;
+    }
+    const call = async (to, sig, argHex = "") => fromHex(await rpc("eth_call", [{ to, data: "0x" + SEL[sig] + argHex }, "latest"]));
+
+    // header
+    const chain = parseInt(await rpc("eth_chainId", []), 16), contract = b.contract;
+    const head = [{ check: "chain id is Arc testnet 5042002", ok: chain === CHAIN_ID && CHAIN_ID === parseInt(b.chain_id ?? CHAIN_ID), detail: `RPC says ${chain}` }];
+    const code = await rpc("eth_getCode", [contract, "latest"]);
+    head.push({ check: "SourceRegistry has contract code", ok: !["0x", "0x0"].includes(code), detail: contract });
+    if (!head.every((x) => x.ok)) return { all_pass: false, header: head, citations: [], model_call: [], rpc_calls: calls.length, evidence, calls };
+
+    // citations
+    const cites = [];
+    for (let i = 0; i < (b.citations || []).length; i++) { tag = "src:" + i; cites.push(await verifyCitation(b.citations[i])); }
+    async function verifyCitation(c) {
+      const fails = [], notes = [], text = c.text ?? "", claimed = (c.content_hash || "").toLowerCase();
+      const h = await shaStr(text);
+      cmp("sha256(text) vs bundle hash", h, claimed, { cmd: "jq -j '.citations[" + b.citations.indexOf(c) + "].text' bundle.json | sha256sum" });
+      if (h !== claimed) fails.push(`text was altered: sha256(text)=${h.slice(0, 18)}... but bundle says ${claimed.slice(0, 18)}...`);
+      const cid = cidV1Raw(h.slice(2));
+      if (c.cid && c.cid !== cid) fails.push(`CID mismatch: recomputed ${cid.slice(0, 20)}... bundle ${c.cid.slice(0, 20)}...`);
+      const src = await call(contract, "getSource(bytes32)", h.slice(2));
+      const exists = asInt(word(src, 0)) === 1n;
+      if (!exists) { fails.push("hash of this text is NOT registered on-chain"); return { id: c.id ?? null, status: "FAIL", reasons: fails, recomputed_hash: h }; }
+      const onchainCid = dynString(src, Number(asInt(word(src, 1)))), registrant = asAddr(word(src, 3)), ts = Number(asInt(word(src, 4)));
+      cmp("CID from text vs on-chain CID", cid, onchainCid);
+      notes.push(`registered on-chain by ${registrant} at unix ${ts}; on-chain CID ${onchainCid}`);
+      if (onchainCid && onchainCid !== cid) fails.push("on-chain CID differs from CID recomputed from the text");
+      if (c.registrant && c.registrant.toLowerCase() !== registrant.toLowerCase()) fails.push(`bundle claims registrant ${c.registrant} but chain says ${registrant}`);
+      const trusted = asInt(await call(contract, "isTrustedPublisher(address)", padAddr(registrant))) === 1n;
+      const verified = asInt(await call(contract, "isVerified(bytes32)", h.slice(2))) === 1n;
+      ev(tag, { kind: "fact", label: "publisher", value: registrant, ok: trusted, note: trusted ? "on the trusted-publisher allowlist" : "NOT trusted" });
+      if (verified !== trusted) fails.push("isVerified disagrees with isTrustedPublisher(registrant)");
+      if (!trusted) fails.push(`registered, but registrant ${registrant} is NOT a trusted publisher`);
+      const tx = c.registration_tx;
+      if (tx) {
+        const t = await rpc("eth_getTransactionByHash", [tx]), rc = await rpc("eth_getTransactionReceipt", [tx]);
+        if (t == null || rc == null) fails.push(`registration tx ${tx} not found on this chain`);
+        else {
+          const [fn, hs] = hashesInCalldata(t.input);
+          if ((t.to || "").toLowerCase() !== contract.toLowerCase()) fails.push("registration tx was not sent to this contract");
+          if (t.from.toLowerCase() !== registrant.toLowerCase()) fails.push("registration tx sender is not the on-chain registrant");
+          if (parseInt(rc.status, 16) !== 1) fails.push("registration tx reverted");
+          ev(tag, { kind: "fact", label: `hash in ${fn} calldata`, value: `${hs.length} hashes in tx input`, ok: hs.includes(h) });
+          if (!hs.includes(h)) fails.push(`hash not found in the ${fn} calldata of the cited tx`);
+          const topic = fn === "registerBatch" ? TOPIC.BATCH : TOPIC.SINGLE;
+          if (!rc.logs.some((l) => l.address.toLowerCase() === contract.toLowerCase() && l.topics[0] === topic)) fails.push("cited tx emitted no registry event from this contract");
+          const blk = await rpc("eth_getBlockByNumber", [rc.blockNumber, false]);
+          cmp("block time of tx vs on-chain registration time", String(parseInt(blk.timestamp, 16)), String(ts));
+          if (parseInt(blk.timestamp, 16) !== ts) fails.push("cited tx's block time != on-chain registration time (it did not register this hash)");
+          if (c.block_number != null && parseInt(rc.blockNumber, 16) !== parseInt(c.block_number)) fails.push("bundle block_number does not match the tx's block");
+          if (!fails.length) notes.push(`tx ${tx.slice(0, 12)}... ${fn} of ${hs.length} hashes in block ${parseInt(rc.blockNumber, 16)} includes it`);
+        }
+      } else notes.push("no registration_tx given: skipped tx/event check");
+      return { id: c.id ?? null, status: fails.length ? "FAIL" : "PASS", reasons: fails, notes, recomputed_hash: h };
+    }
+
+    // model call
+    const inf = b.inference ? await verifyInference() : [];
+    async function verifyInference() {
+      const I = b.inference, out = [], log = I.log_contract, aid = I.answer_id.toLowerCase();
+      const chk = (check, ok, detail = "", t) => { out.push({ check, ok: !!ok, detail, tag: t || tag }); return !!ok; };
+      tag = "record";
+      if (!chk("M1 log contract has code", !["0x", "0x0"].includes(await rpc("eth_getCode", [log, "latest"])), log)) return out;
+      const rec = await call(log, "getRecord(bytes32)", aid.slice(2));
+      const K = ["questionId", "requestHash", "passagesRoot", "modelHash", "responseHash", "logger", "passageCount", "commitBlock", "commitTime", "finalizeBlock", "finalizeTime"];
+      const f = {}; K.forEach((k, i) => (f[k] = word(rec, i)));
+      const hexw = (k) => "0x" + toHex(f[k]);
+      const [cb, ct, fb, ft] = ["commitBlock", "commitTime", "finalizeBlock", "finalizeTime"].map((k) => Number(asInt(f[k])));
+      if (!chk("M1 record exists for answer_id", cb !== 0, aid)) return out;
+      const logger = asAddr(f.logger);
+      const isLog = asInt(await call(log, "isLogger(address)", padAddr(logger))) === 1n;
+      chk("M1 written by an authorized logger", isLog, `logger ${logger}; log owner ${asAddr(await call(log, "owner()"))}`);
+      chk("M1 finalized", fb !== 0);
+
+      tag = "prompt";
+      const rh = await shaStr(I.request_body);
+      cmp("sha256(request bytes) vs on-chain requestHash", rh, hexw("requestHash"), { cmd: "jq -j .inference.request_body bundle.json | sha256sum" });
+      chk("M2 sha256(request bytes) == on-chain requestHash", rh === hexw("requestHash"), `recomputed ${rh.slice(0, 18)}... on-chain ${hexw("requestHash").slice(0, 18)}...`);
+      let body; try { body = JSON.parse(I.request_body); } catch (e) { chk("M2 request body is JSON", false, String(e)); return out; }
+      chk("M2 request bytes are canonical JSON", canonical(body) === I.request_body);
+      const msgs = body.messages || [], sysmsg = (msgs.find((m) => m.role === "system") || {}).content || "", user = (msgs.find((m) => m.role === "user") || {}).content || "";
+      tag = "model";
+      const mh = await shaStr(I.model);
+      cmp("sha256(requested model) vs on-chain modelHash", mh, hexw("modelHash"), { cmd: `printf %s '${I.model}' | sha256sum` });
+      chk("M2 model in request == bundle model, sha256(model) == on-chain modelHash", body.model === I.model && mh === hexw("modelHash"), body.model);
+      tag = "prompt";
+      const qh = await shaStr(I.question_key);
+      chk("M2 question_id == sha256(question_key) == on-chain questionId", qh === I.question_id.toLowerCase() && I.question_id.toLowerCase() === hexw("questionId"), I.question_key);
+      chk("M2 answer_id, question_id, client_ts are inside the hashed request",
+        sysmsg.includes(`answer_id=${I.answer_id}`) && sysmsg.includes(`question_id=${I.question_id}`) && sysmsg.includes(`client_ts=${I.client_request_ts}`));
+      chk("M2 question text in request == bundle question", user.trimEnd().endsWith("Question: " + (b.question ?? "")));
+      const segs = [...user.matchAll(PASSAGE_RE)].map((m) => [m[1], m[2]]);
+      const promptHashes = []; for (const [pid, t] of segs) promptHashes.push([pid, await shaStr(t)]);
+      const listed = (I.passages || []).map((p) => [p.id, p.content_hash.toLowerCase()]);
+      chk("M3 passages parsed from committed prompt == bundle passage list", JSON.stringify(promptHashes) === JSON.stringify(listed), `${promptHashes.length} in prompt, ${listed.length} listed`);
+      const root = await sha256(concat(promptHashes.map(([, h]) => fromHex(h))));
+      cmp("passages root from prompt vs on-chain passagesRoot", root, hexw("passagesRoot"));
+      chk("M3 passagesRoot over prompt passages == on-chain passagesRoot and count matches", root === hexw("passagesRoot") && promptHashes.length === Number(asInt(f.passageCount)), `${promptHashes.length} passages`);
+      for (let i = 0; i < (b.citations || []).length; i++) {
+        const c = b.citations[i], th = await shaStr(c.text ?? "");
+        const inprompt = user.includes(`[${c.id}] ${c.text ?? ""}`), inlist = promptHashes.some(([p, h]) => p === c.id && h === th);
+        chk(`M3 cited ${c.id} text is verbatim in the committed prompt under that id`, inprompt && inlist, inprompt && inlist ? "" : "this passage was NOT in the prompt sent to the model", "src:" + i);
+      }
+
+      tag = "answer";
+      const resp = b64bytes(I.response_body_b64), rsh = await sha256(resp), respOk = rsh === hexw("responseHash");
+      cmp("sha256(raw response bytes) vs on-chain responseHash", rsh, hexw("responseHash"), { cmd: "jq -r .inference.response_body_b64 bundle.json | base64 -d | sha256sum" });
+      chk("M4 sha256(raw response bytes) == on-chain responseHash", respOk, `recomputed ${rsh.slice(0, 18)}... on-chain ${hexw("responseHash").slice(0, 18)}...`);
+      const sm = servedModel(resp), [match, kind] = modelMatch(I.model, sm.served || "");
+      tag = "model";
+      ev("model", { kind: "fact", label: "served model (inside hashed response)", value: `${py(sm.served)} · provider ${py(sm.provider)}`, ok: match && respOk, note: `requested ${I.model} · ${kind} · self-reported by the provider` });
+      chk("M6 served model (from the hashed response) matches the requested model", respOk && match,
+        `requested ${I.model} -> served ${py(sm.served)} (${kind}${respOk ? "" : ", response bytes not authentic"}) · provider ${py(sm.provider)} (self-reported)`);
+      tag = "answer";
+      let mj;
+      try { const content = JSON.parse(new TextDecoder().decode(resp)).choices[0].message.content;
+        const m = /\{[\s\S]*\}/.exec(content); if (!m) throw new Error("no JSON object in content"); mj = JSON.parse(m[0]);
+      } catch (e) { chk("M4 response parses", false, String(e)); return out; }
+      chk("M4 bundle answer == answer in the logged response", deq(mj.answer, b.answer), `response says ${pyRepr(mj.answer)}, bundle says ${pyRepr(b.answer)}`);
+      const bc = (b.citations || []).map((c) => c.id), mc = Array.isArray(mj.citations) ? mj.citations : [];
+      chk("M4 bundle citation ids == citation ids in the logged response", JSON.stringify(bc) === JSON.stringify(mc), `response cites ${pyRepr(mj.citations)}, bundle cites ${pyRepr(bc)}`);
+
+      chk("M5 commit block < finalize block", 0 < cb && cb < fb, `commit block ${cb} (${ct}), finalize block ${fb} (${ft})`);
+      for (const [name, txh, sel, topic, blk, tg] of [["commit", I.commit_tx, SEL["commit(bytes32,bytes32,bytes32,bytes32,bytes32,uint16)"], TOPIC.COMMITTED, cb, "prompt"],
+                                                       ["finalize", I.finalize_tx, SEL["finalize(bytes32,bytes32)"], TOPIC.FINALIZED, fb, "answer"]]) {
+        tag = tg;
+        const t = await rpc("eth_getTransactionByHash", [txh]), r = await rpc("eth_getTransactionReceipt", [txh]);
+        const good = !!(t && r) && (t.to || "").toLowerCase() === log.toLowerCase() && t.input.slice(2, 10) === sel && t.input.slice(10, 74) === aid.slice(2)
+          && parseInt(r.status, 16) === 1 && parseInt(r.blockNumber, 16) === blk
+          && r.logs.some((l) => l.address.toLowerCase() === log.toLowerCase() && l.topics[0] === topic && l.topics[1] === aid);
+        chk(`M5 ${name} tx is the real log tx for this answer_id`, good, txh);
+      }
+      tag = "prompt";
+      try { const cts = parseTs(I.client_request_ts);
+        chk("M5 client request timestamp is not after the commit (<=60 s skew)", cts <= ct + 60, `client ${cts.toFixed(1)} vs commit block time ${ct}`);
+      } catch (e) { chk("M5 client timestamp parses", false, String(e.message || e)); }
+      return out;
+    }
+
+    const ok = cites.length > 0 && cites.every((r) => r.status === "PASS") && inf.every((x) => x.ok);
+    let model = null;
+    if (b.inference) {
+      let sm; try { sm = servedModel(b64bytes(b.inference.response_body_b64)); } catch (e) { sm = { served: null, provider: null }; }
+      const [m, kind] = modelMatch(b.inference.model || "", sm.served || "");
+      model = { requested: b.inference.model ?? null, served: sm.served, provider: sm.provider, match: m, kind };
+    }
+    tag = "net";
+    const owner = asAddr(await call(contract, "owner()"));
+    return { all_pass: ok, model, header: head, citations: cites, model_call: inf, owner, rpc_calls: calls.length, rpc: rpcUrl, evidence, calls };
+  }
+
+  // demo tampering (client-side, on a copy)
+  function tamper(b, mode) {
+    const t = JSON.parse(JSON.stringify(b));
+    if (mode === "char" && t.citations.length) { const c = t.citations[0], i = Math.floor(c.text.length / 2);
+      c.text = c.text.slice(0, i) + (c.text[i] === "x" ? "y" : "x") + c.text.slice(i + 1); t._t = `one character of ${c.id}`; }
+    else if (mode === "answer") { t.answer = t.answer + " (edited)"; t._t = "the answer"; }
+    else if (mode === "model") { const raw = new TextDecoder().decode(b64bytes(t.inference.response_body_b64))
+        .replace(/"model":"[^"]*"/, '"model":"meta-llama/llama-3.1-8b-instruct"');
+      let bin = ""; enc.encode(raw).forEach((x) => (bin += String.fromCharCode(x))); t.inference.response_body_b64 = btoa(bin); t._t = "served model"; }
+    else { t.inference.request_body = t.inference.request_body.replace("[P1] ", "[P1] Note: "); t._t = "the prompt"; }
+    return t;
+  }
+
+  G.ArcVerify = { tamper, verifyBundle, cidV1Raw, canonical, modelMatch, servedModel, SEL, TOPIC, RPC_URL, EXPLORER, CHAIN_ID };
+})(globalThis);
+
+</script>
+<script>
+/* Shared UI: answer card, verification diagram, evidence panel, bundle upload.
+   Verification runs in this page via ArcVerify (arcverify.js): no request goes to our server. */
+(function (G) {
+  "use strict";
+  const A = () => G.ArcVerify;
+  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const bare = (m) => String(m || "?").split("/").pop();
+  const ICON = { ok: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+    bad: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>' };
+  const DL = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>';
+  try { performance.setResourceTimingBufferSize(5000); } catch (e) {}
+
+  function newTurn(thread, q) {
+    const t = document.createElement("div"); t.className = "turn";
+    t.innerHTML = `<div class="q">${esc(q)}</div><div class="body"><div class="loading"><i></i><i></i><i></i></div></div>`;
+    thread.prepend(t); return t;
+  }
+
+  function render(t, b, opt = {}) {
+    const idk = /^i don.?t know/i.test(b.answer || ""), body = t.querySelector(".body");
+    body.innerHTML = `<p class="a ${idk ? "idk" : ""}">${esc(b.answer)}</p>
+      <div class="bar">${(b.citations || []).map((c, i) => `<span class="cite" data-i="${i}">${esc(c.id)}</span>`).join("")}
+        <span class="sp"></span>
+        ${b.inference ? `<span class="menu"><span data-m="char">passage</span><span data-m="answer">answer</span><span data-m="prompt">prompt</span><span data-m="model">model</span></span>
+        <button class="icon" data-a="tamper" title="Tamper with a copy, then verify it">tamper</button>` : ""}
+        ${opt.download === false ? "" : `<button class="icon" data-a="dl" title="Download bundle">${DL}</button>`}
+        <button class="btn" data-a="verify">Verify</button></div>
+      <div class="ptx"></div><div class="vf"></div>`;
+    body.querySelectorAll(".cite").forEach((el) => (el.onclick = () => {
+      const on = el.classList.toggle("on"); body.querySelectorAll(".cite").forEach((o) => o !== el && o.classList.remove("on"));
+      body.querySelector(".ptx").innerHTML = on ? `<div class="ptext">${esc(b.citations[+el.dataset.i].text)}</div>` : ""; }));
+    const dl = body.querySelector("[data-a=dl]");
+    if (dl) dl.onclick = () => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(b, null, 1)], { type: "application/json" }));
+      a.download = `bundle_${(b.inference ? b.inference.answer_id.slice(2, 12) : "answer")}.json`; a.click(); };
+    body.querySelector("[data-a=verify]").onclick = () => verify(body, b, false);
+    const tb = body.querySelector("[data-a=tamper]");
+    if (tb) tb.onclick = () => body.querySelector(".menu").classList.toggle("on");
+    body.querySelectorAll("[data-m]").forEach((el) => (el.onclick = () => { body.querySelector(".menu").classList.remove("on"); verify(body, A().tamper(b, el.dataset.m), true); }));
+    return body;
+  }
+
+  // ---------- map verifier output to diagram nodes ----------
+  function srcReason(rs) { const r = (rs || []).join(" ");
+    if (/altered/.test(r)) return "text was changed: its hash no longer matches the chain";
+    if (/NOT registered/i.test(r)) return "not registered on-chain";
+    if (/trust/i.test(r)) return "publisher is not trusted";
+    return (rs && rs[0]) || "source check failed"; }
+  const allOk = (a) => a.every((x) => x.ok);
+  const firstBad = (a) => (a.find((x) => !x.ok) || {}).check || "";
+  const strip = (s) => s.replace(/^M\d /, "");
+  function build(b, v) {
+    const mc = v ? v.model_call : [], tagged = (t) => mc.filter((x) => x.tag === t), inf = b.inference;
+    const rec = tagged("record"), recOk = allOk(rec);
+    const headOk = v ? allOk(v.header) : true;
+    const cols = [[{ k: "q", lbl: "Question", sub: "Arc testnet", tags: ["net"], checks: v ? v.header : [], ok: headOk, why: "network: " + firstBad(v ? v.header : []) }]];
+    const srcs = (b.citations || []).map((c, i) => { const r = v && v.citations[i], m3 = tagged("src:" + i);
+      const ok = r ? r.status === "PASS" && allOk(m3) : true;
+      const checks = r ? (r.status === "PASS" ? (r.notes || []).map((n) => ({ check: n, ok: true })) : r.reasons.map((x) => ({ check: x, ok: false }))).concat(m3) : [];
+      return { k: "s" + i, lbl: c.id, sub: "on-chain · trusted", tags: ["src:" + i], checks, ok, src: true,
+        why: `${c.id}: ` + (r && r.status !== "PASS" ? srcReason(r.reasons) : "text was not in the committed prompt") }; });
+    cols.push(srcs.length ? srcs : [{ k: "s", lbl: "Sources", sub: "none cited", tags: [], checks: [], ok: true }]);
+    if (inf) {
+      const nodeOk = (cs) => (v ? cs.length > 0 && allOk(cs) && recOk : true);
+      const pc = rec.concat(tagged("prompt")), mcK = tagged("model"), ac = tagged("answer"), md = v && v.model;
+      cols.push([{ k: "p", lbl: "Prompt", sub: "block " + inf.commit_block, tags: ["record", "prompt"], checks: pc, ok: nodeOk(pc),
+        why: !recOk ? "log record: " + strip(firstBad(rec)) : mc.some((x) => /^M2 sha256/.test(x.check) && !x.ok) ? "prompt: bytes differ from the hash committed on-chain" : "prompt: " + strip(firstBad(pc)) }]);
+      cols.push([{ k: "m", lbl: bare(inf.model), wide: 1, sub: md ? `served ${bare(md.served)} · ${md.provider || "?"}` : "requested", tags: ["model"], rec: 1, checks: mcK, ok: nodeOk(mcK),
+        why: "model: " + (md && !md.match ? `requested ${bare(md.requested)}, served ${bare(md.served)}` : mc.some((x) => /^M4 sha256/.test(x.check) && !x.ok) ? "response bytes don't match the on-chain hash" : "differs from the model committed on-chain") }]);
+      cols.push([{ k: "a", lbl: "Answer", sub: "block " + inf.finalize_block, tags: ["answer"], rec: 1, checks: ac, ok: nodeOk(ac),
+        why: "answer: " + (ac.some((x) => /^M4 bundle answer/.test(x.check) && !x.ok) ? "differs from the response logged on-chain" : ac.some((x) => /^M4 sha256/.test(x.check) && !x.ok) ? "response bytes don't match the on-chain hash" : strip(firstBad(ac))) }]);
+    }
+    return cols;
+  }
+
+  // ---------- evidence panel ----------
+  const SEL2SIG = () => { const m = {}; for (const s in A().SEL) m[A().SEL[s]] = s; return m; };
+  function rpcTitle(it) {
+    const m = it.req.method;
+    if (m === "eth_call") { const d = it.req.params[0].data.slice(2), sig = SEL2SIG()[d.slice(0, 8)] || d.slice(0, 8); return `eth_call · ${sig}`; }
+    return m;
+  }
+  function copyBtn(text) { return `<button class="copy" data-copy="${esc(text)}">copy</button>`; }
+  function evidenceHTML(n, v) {
+    const ev = v.evidence || {}, items = [].concat(...n.tags.map((t) => ev[t] || []));
+    if (n.rec) items.unshift(...(ev.record || []).filter((x) => x.kind === "rpc" && /213681cd/.test(JSON.stringify(x.req.params))));
+    let h = "";
+    if (n.checks.length) h += `<h4>Checks</h4>` + n.checks.map((c) => `<div class="ck ${c.ok ? "ok" : "bad"}"><b>${c.ok ? "✓" : "✗"}</b><span>${esc(strip(c.check))}${c.detail && (!c.ok || /^M6/.test(c.check)) ? ` <span class="d">· ${esc(c.detail)}</span>` : ""}</span></div>`).join("");
+    const cmps = items.filter((x) => x.kind === "cmp" || x.kind === "fact");
+    if (cmps.length) h += `<h4>Recomputed in your browser vs on-chain</h4>` + cmps.map((x) => x.kind === "fact"
+      ? `<div class="cmp"><span class="k lab2">${esc(x.label)}<span class="pill ${x.ok ? "ok" : "bad"}">${x.ok ? "ok" : "no"}</span></span>
+         <span class="k">value</span><span class="${x.ok ? "hl-ok" : "hl-bad"}">${esc(x.value)}</span>${x.note ? `<span class="k"></span><span class="k">${esc(x.note)}</span>` : ""}</div>`
+      : `<div class="cmp"><span class="k lab2">${esc(x.label)}<span class="pill ${x.ok ? "ok" : "bad"}">${x.ok ? "match" : "differs"}</span></span>
+         <span class="k">local</span><span class="${x.ok ? "hl-ok" : "hl-bad"}">${esc(x.local)}</span>
+         <span class="k">${/vs bundle/.test(x.label) ? "bundle" : "on-chain"}</span><span class="${x.ok ? "hl-ok" : "hl-bad"}">${esc(x.chain)}</span>
+         ${x.cmd ? `<span class="k">shell</span><span class="cmd">${esc(x.cmd)} ${copyBtn(x.cmd)}</span>` : ""}</div>`).join("");
+    const rpcs = items.filter((x) => x.kind === "rpc");
+    if (rpcs.length) h += `<h4>Raw RPC · direct to ${esc(new URL(v.rpc).host)}</h4>` + rpcs.map((x) => `<details class="rpc"><summary><span>${esc(rpcTitle(x))}</span><span class="ms">${x.ms} ms</span></summary><div class="x">
+        <div class="lab">request</div><pre>${esc(JSON.stringify(x.req, null, 1))}</pre>
+        <div class="lab">response</div><pre>${esc(JSON.stringify(x.res, null, 1))}</pre>
+        <div class="lab">reproduce in a terminal (Foundry cast)</div><div class="cast"><pre>${esc(x.cast)}</pre>${copyBtn(x.cast)}</div>
+        ${x.href ? `<a class="ext" target="_blank" rel="noopener" href="${esc(x.href)}">open in explorer ↗</a>` : ""}</div></details>`).join("");
+    return h;
+  }
+
+  // ---------- verify (in the browser) ----------
+  function nodeHTML(n) { return `<div class="node wait${n.wide ? " wide" : ""}" data-k="${n.k}" title="click for evidence"><div class="dot"></div><div class="lbl">${esc(n.lbl)}</div><div class="sub">${esc(n.sub)}</div></div>`; }
+  async function verify(body, b, tampered) {
+    body.querySelector(".ptx").innerHTML = "";
+    const vf = body.querySelector(".vf"), cols0 = build(b, null);
+    vf.innerHTML = `<div class="flow">${cols0.map((c, i) => (i ? `<div class="link" data-l="${i}"></div>` : "") + `<div class="col">${c.map(nodeHTML).join("")}</div>`).join("")}</div>
+      <div class="why"></div><div class="how"></div><div class="det"></div>`;
+    vf.querySelector(".det").style.display = "none";
+    const t0 = performance.now(); let v;
+    try { v = await A().verifyBundle(b); }
+    catch (e) { vf.querySelector(".why").textContent = "could not reach the Arc RPC from your browser: " + e.message;
+      vf.querySelector(".how").textContent = "verify offline-of-us instead: python verify_citations.py bundle.json  (or the cast commands in the README)"; return; }
+    const mine = location.origin && location.origin !== "null"
+      ? performance.getEntriesByType("resource").filter((e) => e.startTime >= t0 && new URL(e.name).origin === location.origin).length : 0;
+    const cols = build(b, v), byk = Object.fromEntries(cols.flat().map((n) => [n.k, n])), det = vf.querySelector(".det");
+    vf.querySelectorAll(".node").forEach((el) => (el.onclick = () => {
+      const same = det.dataset.k === el.dataset.k && det.style.display !== "none";
+      vf.querySelectorAll(".node").forEach((o) => o.classList.remove("sel"));
+      if (same) { det.style.display = "none"; det.dataset.k = ""; return; }
+      el.classList.add("sel"); det.dataset.k = el.dataset.k; det.style.display = ""; det.innerHTML = evidenceHTML(byk[el.dataset.k], v);
+      det.querySelectorAll("[data-copy]").forEach((c) => (c.onclick = (e) => { e.preventDefault(); navigator.clipboard && navigator.clipboard.writeText(c.dataset.copy); c.textContent = "copied"; setTimeout(() => (c.textContent = "copy"), 1200); }));
+    }));
+    let bad = null;
+    for (let i = 0; i < cols.length; i++) {
+      if (i) { vf.querySelector(`[data-l="${i}"]`).classList.add(cols[i - 1].every((n) => n.ok) ? "ok" : "bad"); await sleep(300); }
+      for (const n of cols[i]) { const el = vf.querySelector(`[data-k="${n.k}"]`); el.classList.remove("wait"); el.classList.add(n.ok ? "ok" : "bad");
+        el.querySelector(".dot").innerHTML = n.ok ? ICON.ok : ICON.bad;
+        if (!n.ok && n.src) el.querySelector(".sub").textContent = "not verified";
+        if (n.k === "m") el.querySelector(".sub").textContent = n.sub;
+        if (!n.ok && !bad) bad = n; await sleep(200); }
+    }
+    const why = vf.querySelector(".why");
+    if (bad) { why.className = "why"; why.innerHTML = esc(bad.why) + (tampered ? `<span class="tag">tampered ${esc(b._t || "copy")}</span>` : ""); }
+    else { why.className = "why okk"; why.textContent = v.all_pass ? "Verified on Arc" : "Model call verified · no sources were cited"; }
+    G.__lastVerify = v;
+    vf.querySelector(".how").textContent = `verified in your browser · direct to ${new URL(v.rpc).host} · ${v.rpc_calls} RPC calls · ${mine} calls to our server`;
+    return v;
+  }
+
+  // ---------- open a bundle file ----------
+  function loadBundle(thread, file, onDone) {
+    const r = new FileReader();
+    r.onload = async () => { let b; const t = newTurn(thread, file.name);
+      try { b = JSON.parse(r.result); if (!b.contract || !Array.isArray(b.citations)) throw new Error("not an answer bundle"); }
+      catch (e) { t.querySelector(".body").innerHTML = `<div class="err">${esc(file.name)}: ${esc(e.message)}</div>`; return; }
+      t.querySelector(".q").textContent = b.question || file.name;
+      const body = render(t, b, { download: false }); const v = await verify(body, b, false); if (onDone) onDone(v); };
+    r.readAsText(file);
+  }
+  function initFileInput(thread, button, dropEl) {
+    const inp = document.createElement("input"); inp.type = "file"; inp.accept = ".json,application/json"; inp.style.display = "none"; document.body.appendChild(inp);
+    inp.onchange = () => { if (inp.files[0]) loadBundle(thread, inp.files[0]); inp.value = ""; };
+    if (button) button.onclick = () => inp.click();
+    let depth = 0;
+    addEventListener("dragenter", (e) => { e.preventDefault(); depth++; dropEl.classList.add("on"); });
+    addEventListener("dragleave", () => { if (--depth <= 0) { depth = 0; dropEl.classList.remove("on"); } });
+    addEventListener("dragover", (e) => e.preventDefault());
+    addEventListener("drop", (e) => { e.preventDefault(); depth = 0; dropEl.classList.remove("on"); const f = e.dataTransfer.files[0]; if (f) loadBundle(thread, f); });
+    return inp;
+  }
+
+  G.VUI = { newTurn, render, verify, loadBundle, initFileInput, esc };
+})(globalThis);
+
+</script>
+<script>
+VUI.initFileInput(document.getElementById("thread"), document.getElementById("zone"), document.getElementById("drop"));
+</script>
+</body>
+</html>

@@ -16,7 +16,7 @@ First-time setup (already done): `py -3.11 -m venv .venv; .\.venv\Scripts\pip in
 4. openai/gpt-4o-mini (via OpenRouter) answers. `InferenceLog.finalize` stores sha256(raw response bytes) in a later block.
 
 ## Verify
-- **Verify** button: re-runs `verify_citations.py` checks against the public RPC and shows a PASS/FAIL list. Source checks: the hash is recomputed from the text, the CID matches, the source is registered, the publisher is trusted, and the registration tx contains the hash. Model-call checks M1–M5: the request, passages and response hashes match what was committed, with commit before finalize.
+- **Verify** button: runs the `verify_citations.py` checks **in your browser** (`static/arcverify.js`, SHA-256 via WebCrypto, keccak via vendored @noble/hashes 1.8.0), calling the public Arc RPC directly. It makes zero calls to this server. Click any node to see the raw RPC request and response, the hash recomputed locally next to the on-chain value, and a `cast` command that reproduces it. Source checks: the hash is recomputed from the text, the CID matches, the source is registered, the publisher is trusted, and the registration tx contains the hash. Model-call checks M1–M5: the request, passages and response hashes match what was committed, with commit before finalize.
 - **Tamper demo**: changes one character of a cited passage, the answer, or the logged prompt in a *copy* of the bundle, then verifies. The copy fails.
 - **Download bundle**, then verify independently without this server (standard library only):
       python verify_citations.py bundle_xxxx.json            # exit code 0 = all checks passed
@@ -29,3 +29,6 @@ Contracts: SourceRegistry 0x9350E7E458abe568B40c1Fc28c66dE674865878e · Inferenc
 Cost per question: about 0.005 testnet USDC of gas (commit + finalize) plus about $0.0001 for gpt-4o-mini.
 
 No-cost preview of the saved example: http://127.0.0.1:8765/?demo=verify  (or ?demo=answer, ?demo=tamper, ?demo=model)
+
+Standalone verifier: `verify.html`, rebuilt with `python build_verify_html.py`. It is one inlined file, works from file://, and its CSP allows network access only to rpc.testnet.arc.io. Drag a bundle onto any page, or use "verify a file".
+Parity with the Python verifier: `python parity/compare.py` (Node) and `node parity/browser_test.js` (headless Chrome).
