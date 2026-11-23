@@ -1,0 +1,58 @@
+===== bundle_test16
+Question: what was the name of atom bomb dropped by usa on hiroshima
+Answer:   Little Boy
+Chain 5042002 via https://rpc.testnet.arc.io | contract 0x9350E7E458abe568B40c1Fc28c66dE674865878e | allowlist owner 0x5a4fcaaeaae1e5edd3f631ff99d84f020d691b33
+  [PASS] citation P5  sha256=0x7560bf807b6cec16...
+         - registered on-chain by 0x5a4fcaaeaae1e5edd3f631ff99d84f020d691b33 at unix 1795464272; on-chain CID bafkreidvmc7ya63m5qlkzilqze4ncawxipuxzcawaguvoqueywbcrz4niy
+         - tx 0xc8443f481c... registerBatch of 250 hashes in block 73751885 includes it
+RESULT: ALL CITATIONS VERIFIED (9 RPC calls)
+exit=0
+===== bundle_test19
+Question: where are the mitochondria located in the sperm
+Answer:   Mitochondria are located in the sperm's midpiece (at the base of the sperm head).
+Chain 5042002 via https://rpc.testnet.arc.io | contract 0x9350E7E458abe568B40c1Fc28c66dE674865878e | allowlist owner 0x5a4fcaaeaae1e5edd3f631ff99d84f020d691b33
+  [PASS] citation P4  sha256=0xbe317cc9bd76e759...
+         - registered on-chain by 0x5a4fcaaeaae1e5edd3f631ff99d84f020d691b33 at unix 1795464274; on-chain CID bafkreif6gf6mtplw45m3us2ftugkvn4psk4fepnkxe4zennoicbpwsp2qq
+         - tx 0x6a612d2acb... registerBatch of 249 hashes in block 73751889 includes it
+RESULT: ALL CITATIONS VERIFIED (9 RPC calls)
+exit=0
+===== bundle_test62
+Question: who wrote the theme song for mission impossible
+Answer:   Lalo Schifrin
+Chain 5042002 via https://rpc.testnet.arc.io | contract 0x9350E7E458abe568B40c1Fc28c66dE674865878e | allowlist owner 0x5a4fcaaeaae1e5edd3f631ff99d84f020d691b33
+  [PASS] citation P1  sha256=0x0b7c3c9c01f5b604...
+         - registered on-chain by 0x5a4fcaaeaae1e5edd3f631ff99d84f020d691b33 at unix 1795464349; on-chain CID bafkreialpq6jyapvwycjw2ejg3hb4dm4gsbznrtuqrsj3gwjefdozddur4
+         - tx 0x33d4c72961... registerBatch of 250 hashes in block 73752035 includes it
+RESULT: ALL CITATIONS VERIFIED (9 RPC calls)
+exit=0
+===== bundle_test62_tampered
+Question: who wrote the theme song for mission impossible
+Answer:   Lalo Schifrim
+Chain 5042002 via https://rpc.testnet.arc.io | contract 0x9350E7E458abe568B40c1Fc28c66dE674865878e | allowlist owner 0x5a4fcaaeaae1e5edd3f631ff99d84f020d691b33
+  [FAIL] citation P1  sha256=0x7b8f65d9b0734e81...
+         x text was altered: sha256(text)=0x7b8f65d9b0734e81... but bundle says 0x0b7c3c9c01f5b604...
+         x CID mismatch: recomputed bafkreid3r5s5tmdtj2a... bundle bafkreialpq6jyapvwyc...
+         x hash of this text is NOT registered on-chain
+RESULT: VERIFICATION FAILED (4 RPC calls)
+exit=1
+===== bundle_test16_naive
+Question: what was the name of atom bomb dropped by usa on hiroshima
+Answer:   Big Man
+Chain 5042002 via https://rpc.testnet.arc.io | contract 0x9350E7E458abe568B40c1Fc28c66dE674865878e | allowlist owner 0x5a4fcaaeaae1e5edd3f631ff99d84f020d691b33
+  [FAIL] citation P1  sha256=0x2380bed5f7bd482a...
+         x registered, but registrant 0x701986c6a9402e39093c66bf6ab93a102ffa9776 is NOT a trusted publisher
+         - registered on-chain by 0x701986c6a9402e39093c66bf6ab93a102ffa9776 at unix 1795464269; on-chain CID bafkreibdqc7nl555javnsixcftiof5t3seowkibhdacqrxvst2oi6m2jxq
+  [FAIL] citation P2  sha256=0x73085510f0099b7e...
+         x registered, but registrant 0x701986c6a9402e39093c66bf6ab93a102ffa9776 is NOT a trusted publisher
+         - registered on-chain by 0x701986c6a9402e39093c66bf6ab93a102ffa9776 at unix 1795464269; on-chain CID bafkreidtbbkrb4ajtn7nrcqu6bhu6iayolkrhyurousv34y6ug24nmwo6u
+  [FAIL] citation P3  sha256=0xb212487f8cece66b...
+         x registered, but registrant 0x701986c6a9402e39093c66bf6ab93a102ffa9776 is NOT a trusted publisher
+         - registered on-chain by 0x701986c6a9402e39093c66bf6ab93a102ffa9776 at unix 1795464270; on-chain CID bafkreifscjeh7dhm4zvsv75c7nc62tww3ewywvwdcimfiqq3myr2c4nhli
+  [FAIL] citation P4  sha256=0x02ef2aeb416337d5...
+         x registered, but registrant 0x701986c6a9402e39093c66bf6ab93a102ffa9776 is NOT a trusted publisher
+         - registered on-chain by 0x701986c6a9402e39093c66bf6ab93a102ffa9776 at unix 1795464269; on-chain CID bafkreiac54vowqldg7kzb3wdl5v34otp5wjmy5bgq3u7cyhad6kcuxakwa
+  [FAIL] citation P5  sha256=0x4670bcf752a10626...
+         x registered, but registrant 0x701986c6a9402e39093c66bf6ab93a102ffa9776 is NOT a trusted publisher
+         - registered on-chain by 0x701986c6a9402e39093c66bf6ab93a102ffa9776 at unix 1795464269; on-chain CID bafkreicgoc6pouvbaythjmsjh64wyyuoh2pecxjolhaaqqyzsdiv3r3qkm
+RESULT: VERIFICATION FAILED (33 RPC calls)
+exit=1

@@ -1,0 +1,112 @@
+[
+ {
+  "note": "fund attacker 0.5 USDC",
+  "tx": "0x489dcc6f7724e4af76960b44b796257a23249d32e1f6e46216c3c8f0246bb799",
+  "status": 1,
+  "gasUsed": 21000,
+  "effectiveGasPrice": 21000000000,
+  "cost_usdc": 0.000441,
+  "block": 73751863,
+  "from_": "0x5A4fcaAEaAE1e5edD3F631fF99D84f020D691B33",
+  "seconds_to_receipt": 0.51
+ },
+ {
+  "note": "attacker registers fakes [0:250]",
+  "tx": "0x00a5e66e86c8c1c68f01336ae1d38a42b0266041a6db41dd6ba192fbe1707704",
+  "status": 1,
+  "gasUsed": 6485201,
+  "effectiveGasPrice": 21000000000,
+  "cost_usdc": 0.136189221,
+  "block": 73751878,
+  "from_": "0x701986C6A9402e39093c66Bf6Ab93A102ffa9776",
+  "seconds_to_receipt": 0.44
+ },
+ {
+  "note": "attacker registers fakes [250:500]",
+  "tx": "0x42aa6ba2ca3df3b01c73e205fdef8cc6883b96e2d5c29c3fb39164436d4f0d5f",
+  "status": 1,
+  "gasUsed": 6485189,
+  "effectiveGasPrice": 21000000000,
+  "cost_usdc": 0.136188969,
+  "block": 73751880,
+  "from_": "0x701986C6A9402e39093c66Bf6Ab93A102ffa9776",
+  "seconds_to_receipt": 1.09
+ },
+ {
+  "note": "trusted cov50 [0:250]",
+  "tx": "0xc8443f481cc623c642f4bf449eef9abf65fea5884fa5900b47f371392a8f73c4",
+  "status": 1,
+  "gasUsed": 6485237,
+  "effectiveGasPrice": 21000000000,
+  "cost_usdc": 0.136189977,
+  "block": 73751885,
+  "from_": "0x5A4fcaAEaAE1e5edD3F631fF99D84f020D691B33",
+  "seconds_to_receipt": 0.43
+ },
+ {
+  "note": "trusted cov50 [250:500]",
+  "tx": "0x1da5217c852fe08d5acab6e031e46609b80962530c9902e47255ecbabd5bc7dc",
+  "status": 1,
+  "gasUsed": 6485213,
+  "effectiveGasPrice": 21000000000,
+  "cost_usdc": 0.136189473,
+  "block": 73751887,
+  "from_": "0x5A4fcaAEaAE1e5edD3F631fF99D84f020D691B33",
+  "seconds_to_receipt": 0.64
+ },
+ {
+  "note": "trusted cov50 [500:749]",
+  "tx": "0x6a612d2acb3707b4fd917d89a1078bd40ba6fe7df1c9d5b12a0561c2800ce9d3",
+  "status": 1,
+  "gasUsed": 6459315,
+  "effectiveGasPrice": 21000000000,
+  "cost_usdc": 0.135645615,
+  "block": 73751889,
+  "from_": "0x5A4fcaAEaAE1e5edD3F631fF99D84f020D691B33",
+  "seconds_to_receipt": 0.55
+ },
+ {
+  "note": "trusted cov80 [0:250]",
+  "tx": "0x95ed0fb1309f871c19a2348b6a50a310edc7cb3b42b6d70f3761adbd41f7c157",
+  "status": 1,
+  "gasUsed": 6485201,
+  "effectiveGasPrice": 21000000000,
+  "cost_usdc": 0.136189221,
+  "block": 73752010,
+  "from_": "0x5A4fcaAEaAE1e5edD3F631fF99D84f020D691B33",
+  "seconds_to_receipt": 0.66
+ },
+ {
+  "note": "trusted cov80 [250:449]",
+  "tx": "0xea1c3f31973aad6892387580fbf1ae2e3e7ee623fe3e429488b08f6e614e374c",
+  "status": 1,
+  "gasUsed": 5168181,
+  "effectiveGasPrice": 21000000000,
+  "cost_usdc": 0.108531801,
+  "block": 73752012,
+  "from_": "0x5A4fcaAEaAE1e5edD3F631fF99D84f020D691B33",
+  "seconds_to_receipt": 0.63
+ },
+ {
+  "note": "trusted cov100 [0:250]",
+  "tx": "0x33d4c7296109149daedfd62e9750e5daf1bea115af0606a47172f6372151d5b5",
+  "status": 1,
+  "gasUsed": 6485273,
+  "effectiveGasPrice": 21000000000,
+  "cost_usdc": 0.136190733,
+  "block": 73752035,
+  "from_": "0x5A4fcaAEaAE1e5edD3F631fF99D84f020D691B33",
+  "seconds_to_receipt": 0.57
+ },
+ {
+  "note": "trusted cov100 [250:300]",
+  "tx": "0x3e4cf7d5aec931e09c1a53f02501d1b14a0808dfab3b957102e1077c3a6beae7",
+  "status": 1,
+  "gasUsed": 1320597,
+  "effectiveGasPrice": 21000000000,
+  "cost_usdc": 0.027732537,
+  "block": 73752037,
+  "from_": "0x5A4fcaAEaAE1e5edD3F631fF99D84f020D691B33",
+  "seconds_to_receipt": 0.7
+ }
+]

@@ -1,0 +1,88 @@
+{
+ "question": "who wrote the theme song for mission impossible",
+ "answer": "Lalo Schifrin",
+ "filter": "verified-only",
+ "chain_id": 5042002,
+ "rpc": "https://rpc.testnet.arc.io",
+ "contract": "0x9350E7E458abe568B40c1Fc28c66dE674865878e",
+ "citations": [
+  {
+   "id": "P1",
+   "text": "\"Theme from Mission: Impossible\" is the theme tune of the TV series Mission: Impossible (1966â€“1973). The theme was written and composed by Argentine composer Lalo Schifrin and has since gone on to appear in several other works of the Mission: Impossible franchise, including the 1988 TV series, the film series and the video game series. The 1960s version has since been acknowledged as one of TV's greatest theme tunes.[1]",
+   "content_hash": "0x0b7c3c9c01f5b6049b688936ce1e0d9c348396c67484649d9ac92146ec8c748f",
+   "cid": "bafkreialpq6jyapvwycjw2ejg3hb4dm4gsbznrtuqrsj3gwjefdozddur4",
+   "registrant": "0x5A4fcaAEaAE1e5edD3F631fF99D84f020D691B33",
+   "registered_at_unix": 1795464349,
+   "registration_tx": "0x33d4c7296109149daedfd62e9750e5daf1bea115af0606a47172f6372151d5b5",
+   "block_number": 73752035,
+   "explorer": {
+    "tx": "https://explorer.testnet.arc.io/tx/0x33d4c7296109149daedfd62e9750e5daf1bea115af0606a47172f6372151d5b5",
+    "contract": "https://explorer.testnet.arc.io/address/0x9350E7E458abe568B40c1Fc28c66dE674865878e"
+   }
+  },
+  {
+   "id": "P2",
+   "text": "On August 6 at 8:15 AM local time, the Enola Gay, a Boeing B-29 Superfortress piloted by Colonel Paul Tibbets, dropped an atomic bomb (code-named Little Boy by the U.S.) on the city of Hiroshima in southwest Honshū.[84] Throughout the day, confused reports reached Tokyo that Hiroshima had been the target of an air raid, which had leveled the city with a \"blinding flash and violent blast\". Later that day, they received U.S. President Truman's broadcast announcing the first use of an atomic bomb, and promising:",
+   "content_hash": "0x7560bf807b6cec16aca170c938d102d743e97c881601a9574284c58228e78d46",
+   "cid": "bafkreidvmc7ya63m5qlkzilqze4ncawxipuxzcawaguvoqueywbcrz4niy",
+   "registrant": "0x5A4fcaAEaAE1e5edD3F631fF99D84f020D691B33",
+   "registered_at_unix": 1795464272,
+   "registration_tx": "0xc8443f481cc623c642f4bf449eef9abf65fea5884fa5900b47f371392a8f73c4",
+   "block_number": 73751885,
+   "explorer": {
+    "tx": "https://explorer.testnet.arc.io/tx/0xc8443f481cc623c642f4bf449eef9abf65fea5884fa5900b47f371392a8f73c4",
+    "contract": "https://explorer.testnet.arc.io/address/0x9350E7E458abe568B40c1Fc28c66dE674865878e"
+   }
+  }
+ ],
+ "inference": {
+  "log_contract": "0xc7CfFb4Ae006AccC82813829CCC466B964aBCAE3",
+  "answer_id": "0x6830b1757fcafae5be5a43e2ca6839102f17ed6bc64cf46589ac98cd13170984",
+  "question_key": "nq:test62",
+  "question_id": "0xa7d348863799edd6b7ac808b4a8332bd3514f20a28b6a4c71746efb745a63ef2",
+  "model": "openai/gpt-4o-mini",
+  "client_request_ts": "2026-11-23T20:20:02.890408Z",
+  "client_response_received_ts": "2026-11-23T20:20:04.800149Z",
+  "serialization": "json.dumps(body, sort_keys=True, separators=(\",\", \":\"), ensure_ascii=False).encode(\"utf-8\")",
+  "request_body": "{\"max_tokens\":150,\"messages\":[{\"content\":\"Request metadata (audit only, do not mention): answer_id=0x6830b1757fcafae5be5a43e2ca6839102f17ed6bc64cf46589ac98cd13170984; question_id=0xa7d348863799edd6b7ac808b4a8332bd3514f20a28b6a4c71746efb745a63ef2; client_ts=2026-11-23T20:20:02.890408Z\",\"role\":\"system\"},{\"content\":\"Answer the question using ONLY the numbered passages. Cite the passage ids you used.\\nReply with JSON only: {\\\"answer\\\": \\\"<short answer>\\\", \\\"citations\\\": [\\\"P1\\\", ...]}. If the passages do not contain the answer, reply {\\\"answer\\\": \\\"I don't know\\\", \\\"citations\\\": []}.\\n\\n[P1] \\\"Theme from Mission: Impossible\\\" is the theme tune of the TV series Mission: Impossible (1966â€“1973). The theme was written and composed by Argentine composer Lalo Schifrin and has since gone on to appear in several other works of the Mission: Impossible franchise, including the 1988 TV series, the film series and the video game series. The 1960s version has since been acknowledged as one of TV's greatest theme tunes.[1]\\n\\n[P2] In 2010, a fictionalized account of Lalo Schifrin's creation of the Mission: Impossible tune was featured in a Lipton TV commercial aired in a number of countries around the world.[4]\\n\\n[P3] The original single release peaked at No. 41 on the Billboard Hot 100 and 19 on the magazine's Adult Contemporary chart in 1967 (Leonard Nimoy, before playing Paris in Mission Impossible in 1969, also covered the theme two years earlier).[3]\\n\\n[P4] Mission: Impossible is still recognized for its innovative use of music. Composer Lalo Schifrin wrote several distinctive pieces for the series. The visual cuts in the main title sequence were timed to the beats and measures of the theme tune—written in (unusual) 54 time—while an animated burning fuse moved across the screen.  Most episodes included fairly long dialogue-free sequences showing the team members—particularly electronics expert Barney Collier—making technical preparations for the mission, usually to the accompaniment of another easily recognizable tune called \\\"The Plot.\\\" Lalo Schifrin also wrote a theme piece for each main character and the sound track for each episode incorporated variations of these throughout. Even when an episode's score is credited to some other composer, Desilu's music supervisor Jack Hunsacker would re-edit it, adding Schifrin melodies from the library.[34]  The series had great impact on film and TV music. Before Mission: Impossible, a common compliment was along the lines of \\\"the score worked very well but never got in the way or called attention to itself.\\\"  By contrast, Mission: Impossible was praised for the prominence of its music.\\n\\n[P5] The Gavin Report wrote about the song: \\\"Those not familiar wiith this piece of music A) are under five years of age, B) have been living with Theodore Kaczynski for the past 25 years, or C) are not aware of television. This interpretation by half of U2 will he heard by millions of moviegoers expected to see what's been anticipated as the film of the summer. Try cranking this up and driving around the hills of San Francisco! Very cool.\\\"[7]\\n\\nQuestion: who wrote the theme song for mission impossible\",\"role\":\"user\"}],\"model\":\"openai/gpt-4o-mini\",\"temperature\":0}",
+  "request_hash": "0x8fa9e362a651d96bdde6d4561ec53299acf5ba16e0f7c34f9703913dc45b9994",
+  "passages": [
+   {
+    "id": "P1",
+    "content_hash": "0x0b7c3c9c01f5b6049b688936ce1e0d9c348396c67484649d9ac92146ec8c748f"
+   },
+   {
+    "id": "P2",
+    "content_hash": "0xf035809058a4df9acb23740175847b834dd40693ab594db9dcb504027f90bc65"
+   },
+   {
+    "id": "P3",
+    "content_hash": "0xb75371b30823093a97bcc592c48ef8e9e75bde8b1a65118558a9b9882370131e"
+   },
+   {
+    "id": "P4",
+    "content_hash": "0x43eaf3f208afffb4010edbe1f9e7c75ad731918f017065560677df72e30742b2"
+   },
+   {
+    "id": "P5",
+    "content_hash": "0x4b997c0d83be38d538b94d48f0b49cff242c3946d88b8615d2b011858e29040a"
+   }
+  ],
+  "passages_root": "0xedf17b249e9544dc21ef87b50f7d0c2e6486c47c4f9ef8d7eefd6077805218b9",
+  "response_body_b64": "CiAgICAgICAgIAp7ImlkIjoiZ2VuLTE3OTU0NjUyMDMtZkhtcGdFallab2x3cU41blo1RjQiLCJvYmplY3QiOiJjaGF0LmNvbXBsZXRpb24iLCJjcmVhdGVkIjoxNzk1NDY1MjAzLCJtb2RlbCI6Im9wZW5haS9ncHQtNG8tbWluaSIsInByb3ZpZGVyIjoiT3BlbkFJIiwic3lzdGVtX2ZpbmdlcnByaW50IjoiZnBfM2EzYzc5NjUyYyIsInNlcnZpY2VfdGllciI6ImRlZmF1bHQiLCJjaG9pY2VzIjpbeyJpbmRleCI6MCwibG9ncHJvYnMiOm51bGwsImZpbmlzaF9yZWFzb24iOiJzdG9wIiwibmF0aXZlX2ZpbmlzaF9yZWFzb24iOiJzdG9wIiwibWVzc2FnZSI6eyJyb2xlIjoiYXNzaXN0YW50IiwiY29udGVudCI6IntcImFuc3dlclwiOiBcIkxhbG8gU2NoaWZyaW5cIiwgXCJjaXRhdGlvbnNcIjogW1wiUDFcIl19IiwicmVmdXNhbCI6bnVsbCwicmVhc29uaW5nIjpudWxsfX1dLCJ1c2FnZSI6eyJwcm9tcHRfdG9rZW5zIjo3NDMsImNvbXBsZXRpb25fdG9rZW5zIjoxOSwidG90YWxfdG9rZW5zIjo3NjIsImNvc3QiOjAuMDAwMTIyODUsImlzX2J5b2siOmZhbHNlLCJwcm9tcHRfdG9rZW5zX2RldGFpbHMiOnsiY2FjaGVkX3Rva2VucyI6MCwiY2FjaGVfd3JpdGVfdG9rZW5zIjowLCJhdWRpb190b2tlbnMiOjAsInZpZGVvX3Rva2VucyI6MH0sImNvc3RfZGV0YWlscyI6eyJ1cHN0cmVhbV9pbmZlcmVuY2VfY29zdCI6MC4wMDAxMjI4NSwidXBzdHJlYW1faW5mZXJlbmNlX3Byb21wdF9jb3N0IjowLjAwMDExMTQ1LCJ1cHN0cmVhbV9pbmZlcmVuY2VfY29tcGxldGlvbnNfY29zdCI6MC4wMDAwMTE0fSwiY29tcGxldGlvbl90b2tlbnNfZGV0YWlscyI6eyJyZWFzb25pbmdfdG9rZW5zIjowLCJpbWFnZV90b2tlbnMiOjAsImF1ZGlvX3Rva2VucyI6MH19fQ==",
+  "response_hash": "0x980266327b7f8b18b3c20e9aa0a3f7cff07759b4a4b40776cdada08a389c411f",
+  "provider_generation_id": "gen-1795465203-fHmpgEjYZolwqN5nZ5F4",
+  "provider_model": "openai/gpt-4o-mini",
+  "commit_tx": "0x58866218f59ce28019e81f2aa842ea545d75eb32d610ddf26d561dcf44e21240",
+  "commit_block": 73753716,
+  "finalize_tx": "0xbfe51c0ba5dbfd50ef2e1ba29fb584d9f9fe2a5f10327dc90c1be8467659dd0e",
+  "finalize_block": 73753720,
+  "explorer": {
+   "commit": "https://explorer.testnet.arc.io/tx/0x58866218f59ce28019e81f2aa842ea545d75eb32d610ddf26d561dcf44e21240",
+   "finalize": "https://explorer.testnet.arc.io/tx/0xbfe51c0ba5dbfd50ef2e1ba29fb584d9f9fe2a5f10327dc90c1be8467659dd0e",
+   "log_contract": "https://explorer.testnet.arc.io/address/0xc7CfFb4Ae006AccC82813829CCC466B964aBCAE3"
+  }
+ },
+ "how_to_verify": "python3 python/verify_citations.py <this file>",
+ "note": "COUNTEREXAMPLE (a): claims a citation (a genuine, trusted-registered passage from another question) that was NOT in the prompt"
+}

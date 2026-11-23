@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+contract SourceRegistry {
+    struct SourceRecord {
+        bytes32 contentHash;
+        string cid;
+        string sourceUri;
+        address registrant;
+        uint256 timestamp;
+    }
+
+    mapping(bytes32 => SourceRecord) public sources;
+    bytes32[] public allHashes;
+
+    event SourceRegistered(bytes32 indexed contentHash, string cid, address indexed registrant, uint256 timestamp);
+    event SourceUpdated(bytes32 indexed contentHash, string cid, address indexed registrant);
+
+    error SourceAlreadyRegistered(bytes32 contentHash);
+    error SourceNotFound(bytes32 contentHash);
+    error EmptyCID();
+
+    function registerSource(bytes32 contentHash, string calldata cid, string calldata sourceUri) external {
+        if (bytes(cid).length == 0) revert EmptyCID();
+        if (sources[contentHash].timestamp != 0) revert SourceAlreadyRegistered(contentHash);
+
+        sources[contentHash] = SourceRecord({
+            contentHash: contentHash,
+            cid: cid,
+            sourceUri: sourceUri,
+            registrant: msg.sender,
+            timestamp: block.timestamp
+        });
+        allHashes.push(contentHash);
+        emit SourceRegistered(contentHash, cid, msg.sender, block.timestamp);
+    }
+
+    function updateSource(bytes32 contentHash, string calldata cid, string calldata sourceUri) external {
+        SourceRecord storage rec = sources[contentHash];
+        if (rec.timestamp == 0) revert SourceNotFound(contentHash);
+        if (rec.registrant != msg.sender) revert("Only registrant can update");
+        if (bytes(cid).length == 0) revert EmptyCID();
+        rec.cid = cid;
+        rec.sourceUri = sourceUri;
+        emit SourceUpdated(contentHash, cid, msg.sender);
+    }
+
+    function getSource(bytes32 contentHash) external view returns (bool exists, string memory cid, string memory sourceUri, address registrant, uint256 timestamp) {
+        SourceRecord memory rec = sources[contentHash];
+        if (rec.timestamp == 0) return (false, "", "", address(0), 0);
+        return (true, rec.cid, rec.sourceUri, rec.registrant, rec.timestamp);
+    }
+
+    function isRegistered(bytes32 contentHash) external view returns (bool) {
+        return sources[contentHash].timestamp != 0;
+    }
+
+    function totalSources() external view returns (uint256) {
+        return allHashes.length;
+    }
+}

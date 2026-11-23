@@ -1,0 +1,6 @@
+.env
+.venv/
+__pycache__/
+server.log
+server.err.log
+server.pid

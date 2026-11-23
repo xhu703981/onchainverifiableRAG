@@ -1,0 +1,32 @@
+# secrets
+.env
+.env*
+!.env.example
+**/.env*
+!**/.env.example
+*.key
+*.pem
+keystore/
+**/keystore/
+# python / tooling
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+# foundry build artifacts and broadcast logs
+out/
+cache/
+broadcast/
+# API response caches
+experiments/cache/
+**/cache/openrouter/
+# large data (NQ corpus, BM25 index, embeddings) -- rebuild with experiments/hybrid_baseline scripts
+experiments/data/
+*.npy
+!webdemo/data/emb.npy
+# misc
+node_modules/
+*.log
+!experiments/arc/*.log
+server.pid

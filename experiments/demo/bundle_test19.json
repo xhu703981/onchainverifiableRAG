@@ -1,0 +1,28 @@
+{
+ "question": "where are the mitochondria located in the sperm",
+ "answer": "Mitochondria are located in the sperm's midpiece (at the base of the sperm head).",
+ "filter": "verified-only",
+ "generator": "openai/gpt-4o-mini",
+ "chain_id": 5042002,
+ "rpc": "https://rpc.testnet.arc.io",
+ "contract": "0x9350E7E458abe568B40c1Fc28c66dE674865878e",
+ "citations": [
+  {
+   "id": "P4",
+   "text": "Motile sperm cells typically move via flagella and require a water medium in order to swim toward the egg for fertilization. In animals most of the energy for sperm motility is derived from the metabolism of fructose carried in the seminal fluid. This takes place in the mitochondria located in the sperm's midpiece (at the base of the sperm head). These cells cannot swim backwards due to the nature of their propulsion. The uniflagellated sperm cells (with one flagellum) of animals are referred to as spermatozoa, and are known to vary in size.[citation needed]",
+   "content_hash": "0xbe317cc9bd76e759ba4b459d0caab78f92b8523daab9399235ae4082fb49fa84",
+   "cid": "bafkreif6gf6mtplw45m3us2ftugkvn4psk4fepnkxe4zennoicbpwsp2qq",
+   "registrant": "0x5A4fcaAEaAE1e5edD3F631fF99D84f020D691B33",
+   "registered_at_unix": 1795464274,
+   "registration_tx": "0x6a612d2acb3707b4fd917d89a1078bd40ba6fe7df1c9d5b12a0561c2800ce9d3",
+   "block_number": 73751889,
+   "explorer": {
+    "tx": "https://explorer.testnet.arc.io/tx/0x6a612d2acb3707b4fd917d89a1078bd40ba6fe7df1c9d5b12a0561c2800ce9d3",
+    "block": "https://explorer.testnet.arc.io/block/73751889",
+    "registrant": "https://explorer.testnet.arc.io/address/0x5A4fcaAEaAE1e5edD3F631fF99D84f020D691B33",
+    "contract": "https://explorer.testnet.arc.io/address/0x9350E7E458abe568B40c1Fc28c66dE674865878e?tab=read_contract"
+   }
+  }
+ ],
+ "how_to_verify": "python python/verify_citations.py <this file>"
+}

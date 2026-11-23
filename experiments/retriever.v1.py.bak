@@ -1,0 +1,94 @@
+"""Filter RAG chunks to those whose content hash is registered on-chain."""
+
+from __future__ import annotations
+
+from typing import Any, Iterable, Mapping, Sequence, Union
+
+from hashing import sha256_text, to_bytes32_hex
+
+Chunk = Union[str, Mapping[str, Any]]
+
+
+def chunk_text(chunk: Chunk) -> str:
+    """Extract the text used for hashing from a chunk (str or dict with 'text')."""
+    if isinstance(chunk, str):
+        return chunk
+    if isinstance(chunk, Mapping):
+        if "text" not in chunk:
+            raise ValueError("dict chunks must include a 'text' field")
+        text = chunk["text"]
+        if not isinstance(text, str):
+            raise TypeError("chunk['text'] must be a string")
+        return text
+    raise TypeError(f"unsupported chunk type: {type(chunk).__name__}")
+
+
+def chunk_content_hash(chunk: Chunk) -> str:
+    """SHA-256 of the chunk text (UTF-8) as 0x-prefixed bytes32 hex."""
+    return to_bytes32_hex(sha256_text(chunk_text(chunk)))
+
+
+def _looks_like_web3_contract(registry: Any) -> bool:
+    """True for a web3.py Contract (or a close look-alike), not a generic mock."""
+    functions = getattr(registry, "functions", None)
+    if functions is None:
+        return False
+    module = type(registry).__module__
+    if module.startswith("web3"):
+        return True
+    if type(functions).__name__ in {"ContractFunctions", "ContractFunction"}:
+        return True
+    return False
+
+
+def _call_is_registered(registry: Any, content_hash: str) -> bool:
+    if _looks_like_web3_contract(registry):
+        return bool(registry.functions.isRegistered(content_hash).call())
+
+    is_registered = getattr(registry, "isRegistered", None)
+    if callable(is_registered):
+        result = is_registered(content_hash)
+        call = getattr(result, "call", None)
+        if callable(call):
+            result = call()
+        return bool(result)
+
+    functions = getattr(registry, "functions", None)
+    if functions is not None and hasattr(functions, "isRegistered"):
+        fn = functions.isRegistered(content_hash)
+        call = getattr(fn, "call", None)
+        if callable(call):
+            return bool(call())
+        return bool(fn)
+
+    raise TypeError("registry must provide isRegistered(...)")
+
+
+class VerifiedRetriever:
+    """Return only chunks whose SHA-256 content hash is registered on-chain.
+
+    `registry` may be:
+    - any object with `isRegistered(content_hash) -> bool`
+    - an object whose `isRegistered(...)` return value has a `.call()` method
+    - a web3.py contract with `functions.isRegistered(content_hash).call()`
+    """
+
+    def __init__(self, registry: Any):
+        if registry is None:
+            raise ValueError("registry is required")
+        self.registry = registry
+
+    def is_registered(self, content_hash: str) -> bool:
+        return _call_is_registered(self.registry, content_hash)
+
+    def filter(self, chunks: Iterable[Chunk]) -> list[Chunk]:
+        """Return the subset of `chunks` whose content hash is registered."""
+        verified: list[Chunk] = []
+        for chunk in chunks:
+            if self.is_registered(chunk_content_hash(chunk)):
+                verified.append(chunk)
+        return verified
+
+    def retrieve(self, chunks: Sequence[Chunk]) -> list[Chunk]:
+        """Alias for :meth:`filter`."""
+        return self.filter(chunks)

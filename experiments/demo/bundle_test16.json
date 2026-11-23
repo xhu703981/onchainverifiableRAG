@@ -1,0 +1,28 @@
+{
+ "question": "what was the name of atom bomb dropped by usa on hiroshima",
+ "answer": "Little Boy",
+ "filter": "verified-only",
+ "generator": "openai/gpt-4o-mini",
+ "chain_id": 5042002,
+ "rpc": "https://rpc.testnet.arc.io",
+ "contract": "0x9350E7E458abe568B40c1Fc28c66dE674865878e",
+ "citations": [
+  {
+   "id": "P5",
+   "text": "On August 6 at 8:15 AM local time, the Enola Gay, a Boeing B-29 Superfortress piloted by Colonel Paul Tibbets, dropped an atomic bomb (code-named Little Boy by the U.S.) on the city of Hiroshima in southwest Honshū.[84] Throughout the day, confused reports reached Tokyo that Hiroshima had been the target of an air raid, which had leveled the city with a \"blinding flash and violent blast\". Later that day, they received U.S. President Truman's broadcast announcing the first use of an atomic bomb, and promising:",
+   "content_hash": "0x7560bf807b6cec16aca170c938d102d743e97c881601a9574284c58228e78d46",
+   "cid": "bafkreidvmc7ya63m5qlkzilqze4ncawxipuxzcawaguvoqueywbcrz4niy",
+   "registrant": "0x5A4fcaAEaAE1e5edD3F631fF99D84f020D691B33",
+   "registered_at_unix": 1795464272,
+   "registration_tx": "0xc8443f481cc623c642f4bf449eef9abf65fea5884fa5900b47f371392a8f73c4",
+   "block_number": 73751885,
+   "explorer": {
+    "tx": "https://explorer.testnet.arc.io/tx/0xc8443f481cc623c642f4bf449eef9abf65fea5884fa5900b47f371392a8f73c4",
+    "block": "https://explorer.testnet.arc.io/block/73751885",
+    "registrant": "https://explorer.testnet.arc.io/address/0x5A4fcaAEaAE1e5edD3F631fF99D84f020D691B33",
+    "contract": "https://explorer.testnet.arc.io/address/0x9350E7E458abe568B40c1Fc28c66dE674865878e?tab=read_contract"
+   }
+  }
+ ],
+ "how_to_verify": "python python/verify_citations.py <this file>"
+}

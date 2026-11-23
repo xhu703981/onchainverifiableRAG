@@ -1,0 +1,28 @@
+{
+ "question": "who wrote the theme song for mission impossible",
+ "answer": "Lalo Schifrin",
+ "filter": "verified-only",
+ "generator": "openai/gpt-4o-mini",
+ "chain_id": 5042002,
+ "rpc": "https://rpc.testnet.arc.io",
+ "contract": "0x9350E7E458abe568B40c1Fc28c66dE674865878e",
+ "citations": [
+  {
+   "id": "P1",
+   "text": "\"Theme from Mission: Impossible\" is the theme tune of the TV series Mission: Impossible (1966â€“1973). The theme was written and composed by Argentine composer Lalo Schifrin and has since gone on to appear in several other works of the Mission: Impossible franchise, including the 1988 TV series, the film series and the video game series. The 1960s version has since been acknowledged as one of TV's greatest theme tunes.[1]",
+   "content_hash": "0x0b7c3c9c01f5b6049b688936ce1e0d9c348396c67484649d9ac92146ec8c748f",
+   "cid": "bafkreialpq6jyapvwycjw2ejg3hb4dm4gsbznrtuqrsj3gwjefdozddur4",
+   "registrant": "0x5A4fcaAEaAE1e5edD3F631fF99D84f020D691B33",
+   "registered_at_unix": 1795464349,
+   "registration_tx": "0x33d4c7296109149daedfd62e9750e5daf1bea115af0606a47172f6372151d5b5",
+   "block_number": 73752035,
+   "explorer": {
+    "tx": "https://explorer.testnet.arc.io/tx/0x33d4c7296109149daedfd62e9750e5daf1bea115af0606a47172f6372151d5b5",
+    "block": "https://explorer.testnet.arc.io/block/73752035",
+    "registrant": "https://explorer.testnet.arc.io/address/0x5A4fcaAEaAE1e5edD3F631fF99D84f020D691B33",
+    "contract": "https://explorer.testnet.arc.io/address/0x9350E7E458abe568B40c1Fc28c66dE674865878e?tab=read_contract"
+   }
+  }
+ ],
+ "how_to_verify": "python python/verify_citations.py <this file>"
+}

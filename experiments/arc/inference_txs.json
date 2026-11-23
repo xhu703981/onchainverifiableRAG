@@ -1,0 +1,34 @@
+[
+ {
+  "note": "commit test16",
+  "tx": "0x0b7940d62cef5800386da9e66843fe2b97bad5a7986760ee4f90d58b3db02866",
+  "block": 73753709,
+  "gasUsed": 190289,
+  "effectiveGasPrice": 21000000000,
+  "cost_usdc": 0.003996069
+ },
+ {
+  "note": "finalize test16",
+  "tx": "0xd849f20776826f0faf8180230b0650ff060eb7b32dee568c7c9c0249f53911bb",
+  "block": 73753712,
+  "gasUsed": 57589,
+  "effectiveGasPrice": 21000000000,
+  "cost_usdc": 0.001209369
+ },
+ {
+  "note": "commit test62",
+  "tx": "0x58866218f59ce28019e81f2aa842ea545d75eb32d610ddf26d561dcf44e21240",
+  "block": 73753716,
+  "gasUsed": 173201,
+  "effectiveGasPrice": 21000000000,
+  "cost_usdc": 0.003637221
+ },
+ {
+  "note": "finalize test62",
+  "tx": "0xbfe51c0ba5dbfd50ef2e1ba29fb584d9f9fe2a5f10327dc90c1be8467659dd0e",
+  "block": 73753720,
+  "gasUsed": 57589,
+  "effectiveGasPrice": 21000000000,
+  "cost_usdc": 0.001209369
+ }
+]

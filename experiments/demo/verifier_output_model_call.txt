@@ -1,0 +1,124 @@
+===== bundle_test62_logged
+Question: who wrote the theme song for mission impossible
+Answer:   Lalo Schifrin
+Chain 5042002 via https://rpc.testnet.arc.io | contract 0x9350E7E458abe568B40c1Fc28c66dE674865878e | allowlist owner 0x5a4fcaaeaae1e5edd3f631ff99d84f020d691b33
+  [PASS] citation P1  sha256=0x0b7c3c9c01f5b604...
+         - registered on-chain by 0x5a4fcaaeaae1e5edd3f631ff99d84f020d691b33 at unix 1795464349; on-chain CID bafkreialpq6jyapvwycjw2ejg3hb4dm4gsbznrtuqrsj3gwjefdozddur4
+         - tx 0x33d4c72961... registerBatch of 250 hashes in block 73752035 includes it
+Model call (InferenceLog 0xc7CfFb4Ae006AccC82813829CCC466B964aBCAE3, answer_id 0x6830b1757fcafae5...):
+  [PASS] M1 log contract has code
+  [PASS] M1 record exists for answer_id
+  [PASS] M1 written by an authorized logger
+  [PASS] M1 finalized
+  [PASS] M2 sha256(request bytes) == on-chain requestHash
+  [PASS] M2 request bytes are canonical JSON
+  [PASS] M2 model in request == bundle model, sha256(model) == on-chain modelHash
+  [PASS] M2 question_id == sha256(question_key) == on-chain questionId
+  [PASS] M2 answer_id, question_id, client_ts are inside the hashed request
+  [PASS] M2 question text in request == bundle question
+  [PASS] M3 passages parsed from committed prompt == bundle passage list
+  [PASS] M3 passagesRoot over prompt passages == on-chain passagesRoot and count matches
+  [PASS] M3 cited P1 text is verbatim in the committed prompt under that id
+  [PASS] M4 sha256(raw response bytes) == on-chain responseHash
+  [PASS] M4 bundle answer == answer in the logged response
+  [PASS] M4 bundle citation ids == citation ids in the logged response
+  [PASS] M5 commit block < finalize block
+  [PASS] M5 commit tx is the real log tx for this answer_id
+  [PASS] M5 finalize tx is the real log tx for this answer_id
+  [PASS] M5 client request timestamp is not after the commit (<=60 s skew)
+RESULT: ALL CHECKS PASSED (17 RPC calls)
+exit=0
+===== bundle_test62_logged_fake_citation
+Question: who wrote the theme song for mission impossible
+Answer:   Lalo Schifrin
+Chain 5042002 via https://rpc.testnet.arc.io | contract 0x9350E7E458abe568B40c1Fc28c66dE674865878e | allowlist owner 0x5a4fcaaeaae1e5edd3f631ff99d84f020d691b33
+  [PASS] citation P1  sha256=0x0b7c3c9c01f5b604...
+         - registered on-chain by 0x5a4fcaaeaae1e5edd3f631ff99d84f020d691b33 at unix 1795464349; on-chain CID bafkreialpq6jyapvwycjw2ejg3hb4dm4gsbznrtuqrsj3gwjefdozddur4
+         - tx 0x33d4c72961... registerBatch of 250 hashes in block 73752035 includes it
+  [PASS] citation P2  sha256=0x7560bf807b6cec16...
+         - registered on-chain by 0x5a4fcaaeaae1e5edd3f631ff99d84f020d691b33 at unix 1795464272; on-chain CID bafkreidvmc7ya63m5qlkzilqze4ncawxipuxzcawaguvoqueywbcrz4niy
+         - tx 0xc8443f481c... registerBatch of 250 hashes in block 73751885 includes it
+Model call (InferenceLog 0xc7CfFb4Ae006AccC82813829CCC466B964aBCAE3, answer_id 0x6830b1757fcafae5...):
+  [PASS] M1 log contract has code
+  [PASS] M1 record exists for answer_id
+  [PASS] M1 written by an authorized logger
+  [PASS] M1 finalized
+  [PASS] M2 sha256(request bytes) == on-chain requestHash
+  [PASS] M2 request bytes are canonical JSON
+  [PASS] M2 model in request == bundle model, sha256(model) == on-chain modelHash
+  [PASS] M2 question_id == sha256(question_key) == on-chain questionId
+  [PASS] M2 answer_id, question_id, client_ts are inside the hashed request
+  [PASS] M2 question text in request == bundle question
+  [PASS] M3 passages parsed from committed prompt == bundle passage list
+  [PASS] M3 passagesRoot over prompt passages == on-chain passagesRoot and count matches
+  [PASS] M3 cited P1 text is verbatim in the committed prompt under that id
+  [FAIL] M3 cited P2 text is verbatim in the committed prompt under that id  -- this passage was NOT in the prompt sent to the model
+  [PASS] M4 sha256(raw response bytes) == on-chain responseHash
+  [PASS] M4 bundle answer == answer in the logged response
+  [FAIL] M4 bundle citation ids == citation ids in the logged response  -- response cites ['P1'], bundle cites ['P1', 'P2']
+  [PASS] M5 commit block < finalize block
+  [PASS] M5 commit tx is the real log tx for this answer_id
+  [PASS] M5 finalize tx is the real log tx for this answer_id
+  [PASS] M5 client request timestamp is not after the commit (<=60 s skew)
+RESULT: VERIFICATION FAILED (23 RPC calls)
+exit=1
+===== bundle_test62_logged_prompt_tampered
+Question: who wrote the theme song for mission impossible
+Answer:   Lalo Schifrin
+Chain 5042002 via https://rpc.testnet.arc.io | contract 0x9350E7E458abe568B40c1Fc28c66dE674865878e | allowlist owner 0x5a4fcaaeaae1e5edd3f631ff99d84f020d691b33
+  [PASS] citation P1  sha256=0x0b7c3c9c01f5b604...
+         - registered on-chain by 0x5a4fcaaeaae1e5edd3f631ff99d84f020d691b33 at unix 1795464349; on-chain CID bafkreialpq6jyapvwycjw2ejg3hb4dm4gsbznrtuqrsj3gwjefdozddur4
+         - tx 0x33d4c72961... registerBatch of 250 hashes in block 73752035 includes it
+Model call (InferenceLog 0xc7CfFb4Ae006AccC82813829CCC466B964aBCAE3, answer_id 0x6830b1757fcafae5...):
+  [PASS] M1 log contract has code
+  [PASS] M1 record exists for answer_id
+  [PASS] M1 written by an authorized logger
+  [PASS] M1 finalized
+  [FAIL] M2 sha256(request bytes) == on-chain requestHash  -- recomputed 0x912f47f6f24b0485... on-chain 0x8fa9e362a651d96b...
+  [PASS] M2 request bytes are canonical JSON
+  [PASS] M2 model in request == bundle model, sha256(model) == on-chain modelHash
+  [PASS] M2 question_id == sha256(question_key) == on-chain questionId
+  [PASS] M2 answer_id, question_id, client_ts are inside the hashed request
+  [PASS] M2 question text in request == bundle question
+  [FAIL] M3 passages parsed from committed prompt == bundle passage list  -- 5 in prompt, 5 listed
+  [FAIL] M3 passagesRoot over prompt passages == on-chain passagesRoot and count matches  -- 5 passages
+  [FAIL] M3 cited P1 text is verbatim in the committed prompt under that id  -- this passage was NOT in the prompt sent to the model
+  [PASS] M4 sha256(raw response bytes) == on-chain responseHash
+  [PASS] M4 bundle answer == answer in the logged response
+  [PASS] M4 bundle citation ids == citation ids in the logged response
+  [PASS] M5 commit block < finalize block
+  [PASS] M5 commit tx is the real log tx for this answer_id
+  [PASS] M5 finalize tx is the real log tx for this answer_id
+  [PASS] M5 client request timestamp is not after the commit (<=60 s skew)
+RESULT: VERIFICATION FAILED (17 RPC calls)
+exit=1
+===== bundle_test62_logged_answer_altered
+Question: who wrote the theme song for mission impossible
+Answer:   John Williams
+Chain 5042002 via https://rpc.testnet.arc.io | contract 0x9350E7E458abe568B40c1Fc28c66dE674865878e | allowlist owner 0x5a4fcaaeaae1e5edd3f631ff99d84f020d691b33
+  [PASS] citation P1  sha256=0x0b7c3c9c01f5b604...
+         - registered on-chain by 0x5a4fcaaeaae1e5edd3f631ff99d84f020d691b33 at unix 1795464349; on-chain CID bafkreialpq6jyapvwycjw2ejg3hb4dm4gsbznrtuqrsj3gwjefdozddur4
+         - tx 0x33d4c72961... registerBatch of 250 hashes in block 73752035 includes it
+Model call (InferenceLog 0xc7CfFb4Ae006AccC82813829CCC466B964aBCAE3, answer_id 0x6830b1757fcafae5...):
+  [PASS] M1 log contract has code
+  [PASS] M1 record exists for answer_id
+  [PASS] M1 written by an authorized logger
+  [PASS] M1 finalized
+  [PASS] M2 sha256(request bytes) == on-chain requestHash
+  [PASS] M2 request bytes are canonical JSON
+  [PASS] M2 model in request == bundle model, sha256(model) == on-chain modelHash
+  [PASS] M2 question_id == sha256(question_key) == on-chain questionId
+  [PASS] M2 answer_id, question_id, client_ts are inside the hashed request
+  [PASS] M2 question text in request == bundle question
+  [PASS] M3 passages parsed from committed prompt == bundle passage list
+  [PASS] M3 passagesRoot over prompt passages == on-chain passagesRoot and count matches
+  [PASS] M3 cited P1 text is verbatim in the committed prompt under that id
+  [PASS] M4 sha256(raw response bytes) == on-chain responseHash
+  [FAIL] M4 bundle answer == answer in the logged response  -- response says 'Lalo Schifrin', bundle says 'John Williams'
+  [PASS] M4 bundle citation ids == citation ids in the logged response
+  [PASS] M5 commit block < finalize block
+  [PASS] M5 commit tx is the real log tx for this answer_id
+  [PASS] M5 finalize tx is the real log tx for this answer_id
+  [PASS] M5 client request timestamp is not after the commit (<=60 s skew)
+RESULT: VERIFICATION FAILED (17 RPC calls)
+exit=1

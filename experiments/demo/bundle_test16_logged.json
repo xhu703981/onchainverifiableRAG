@@ -1,0 +1,73 @@
+{
+ "question": "what was the name of atom bomb dropped by usa on hiroshima",
+ "answer": "Little Boy",
+ "filter": "verified-only",
+ "chain_id": 5042002,
+ "rpc": "https://rpc.testnet.arc.io",
+ "contract": "0x9350E7E458abe568B40c1Fc28c66dE674865878e",
+ "citations": [
+  {
+   "id": "P5",
+   "text": "On August 6 at 8:15 AM local time, the Enola Gay, a Boeing B-29 Superfortress piloted by Colonel Paul Tibbets, dropped an atomic bomb (code-named Little Boy by the U.S.) on the city of Hiroshima in southwest Honshū.[84] Throughout the day, confused reports reached Tokyo that Hiroshima had been the target of an air raid, which had leveled the city with a \"blinding flash and violent blast\". Later that day, they received U.S. President Truman's broadcast announcing the first use of an atomic bomb, and promising:",
+   "content_hash": "0x7560bf807b6cec16aca170c938d102d743e97c881601a9574284c58228e78d46",
+   "cid": "bafkreidvmc7ya63m5qlkzilqze4ncawxipuxzcawaguvoqueywbcrz4niy",
+   "registrant": "0x5A4fcaAEaAE1e5edD3F631fF99D84f020D691B33",
+   "registered_at_unix": 1795464272,
+   "registration_tx": "0xc8443f481cc623c642f4bf449eef9abf65fea5884fa5900b47f371392a8f73c4",
+   "block_number": 73751885,
+   "explorer": {
+    "tx": "https://explorer.testnet.arc.io/tx/0xc8443f481cc623c642f4bf449eef9abf65fea5884fa5900b47f371392a8f73c4",
+    "contract": "https://explorer.testnet.arc.io/address/0x9350E7E458abe568B40c1Fc28c66dE674865878e"
+   }
+  }
+ ],
+ "inference": {
+  "log_contract": "0xc7CfFb4Ae006AccC82813829CCC466B964aBCAE3",
+  "answer_id": "0xb14e6d48afbbf8cf12da3cf4e90c85d3ff89d2816d02d387ec3144d85655904c",
+  "question_key": "nq:test16",
+  "question_id": "0x6bd774aa77379cc254496def31a4af3c6c7a1d32c4962d6a37c67ba275c5363c",
+  "model": "openai/gpt-4o-mini",
+  "client_request_ts": "2026-11-23T20:19:58.980782Z",
+  "client_response_received_ts": "2026-11-23T20:20:00.725207Z",
+  "serialization": "json.dumps(body, sort_keys=True, separators=(\",\", \":\"), ensure_ascii=False).encode(\"utf-8\")",
+  "request_body": "{\"max_tokens\":150,\"messages\":[{\"content\":\"Request metadata (audit only, do not mention): answer_id=0xb14e6d48afbbf8cf12da3cf4e90c85d3ff89d2816d02d387ec3144d85655904c; question_id=0x6bd774aa77379cc254496def31a4af3c6c7a1d32c4962d6a37c67ba275c5363c; client_ts=2026-11-23T20:19:58.980782Z\",\"role\":\"system\"},{\"content\":\"Answer the question using ONLY the numbered passages. Cite the passage ids you used.\\nReply with JSON only: {\\\"answer\\\": \\\"<short answer>\\\", \\\"citations\\\": [\\\"P1\\\", ...]}. If the passages do not contain the answer, reply {\\\"answer\\\": \\\"I don't know\\\", \\\"citations\\\": []}.\\n\\n[P1] On 30 June 2007, Japan's defense minister Fumio Kyūma said the dropping of atomic bombs on Japan by the United States during World War II was an inevitable way to end the war. Kyūma said: \\\"I now have come to accept in my mind that in order to end the war, it could not be helped (shikata ga nai) that an atomic bomb was dropped on Nagasaki and that countless numbers of people suffered great tragedy.\\\" Kyūma, who is from Nagasaki, said the bombing caused great suffering in the city, but he does not resent the U.S. because it prevented the Soviet Union from entering the war with Japan.[54] Kyūma's comments were similar to those made by Emperor Hirohito when, in his first ever press conference given in Tokyo in 1975, he was asked what he thought of the bombing of Hiroshima, and answered: \\\"It's very regrettable that nuclear bombs were dropped and I feel sorry for the citizens of Hiroshima but it couldn't be helped (shikata ga nai) because that happened in wartime.\\\"[55]\\n\\n[P2] Some historians have argued that while the first bomb might have been required to achieve Japanese surrender, dropping the second constituted a needless barbarism. However, the record shows otherwise. American officials believed more than one bomb would be necessary because they assumed Japanese hard-liners would minimize the first explosion or attempt to explain it away as some sort of natural catastrophe, which is precisely what they did. In the three days between the bombings, the Japanese minister of war, for instance, refused even to admit that the Hiroshima bomb was atomic. A few hours after Nagasaki, he told the cabinet that \\\"the Americans appeared to have one hundred atomic bombsÂ ... they could drop three per day. The next target might well be Tokyo.\\\"[71]\\n\\n[P3] In August 1945, on Truman's orders, two atomic bombs were dropped on Japanese cities. The first bomb was dropped on Hiroshima, and the second bomb was dropped on Nagasaki by the B-29 bombers named Enola Gay and Bockscar respectively.\\n\\n[P4] Campbell Craig and Fredrik Logevall argue the two bombs were dropped for different reasons:\\n\\n[P5] On August 6 at 8:15 AM local time, the Enola Gay, a Boeing B-29 Superfortress piloted by Colonel Paul Tibbets, dropped an atomic bomb (code-named Little Boy by the U.S.) on the city of Hiroshima in southwest Honshū.[84] Throughout the day, confused reports reached Tokyo that Hiroshima had been the target of an air raid, which had leveled the city with a \\\"blinding flash and violent blast\\\". Later that day, they received U.S. President Truman's broadcast announcing the first use of an atomic bomb, and promising:\\n\\nQuestion: what was the name of atom bomb dropped by usa on hiroshima\",\"role\":\"user\"}],\"model\":\"openai/gpt-4o-mini\",\"temperature\":0}",
+  "request_hash": "0x8ce1a3d8c5eaf2c4dd99759419c197b1d90f8204344504969216ba282b7e249b",
+  "passages": [
+   {
+    "id": "P1",
+    "content_hash": "0xf90748d23d2f069e96a594bef073178b943505364f0b7809457f264b6e732cef"
+   },
+   {
+    "id": "P2",
+    "content_hash": "0x8aef03680d7e0661e123d9b1d40862a8227a8355c91f0f2d327964d07b2da3f2"
+   },
+   {
+    "id": "P3",
+    "content_hash": "0xe6c5084743909a4ce084a465aa43f23acd7dcd85fcfd75df4ed72efff947db29"
+   },
+   {
+    "id": "P4",
+    "content_hash": "0xbbcc4dc3f83d864142f8f7ea4faa509f4bb842230f4911ecad57d0df99e76c65"
+   },
+   {
+    "id": "P5",
+    "content_hash": "0x7560bf807b6cec16aca170c938d102d743e97c881601a9574284c58228e78d46"
+   }
+  ],
+  "passages_root": "0x08cb4e1e861f00809174ff60ce12a7844e10959ced0a09e9e2cabb68b20b5606",
+  "response_body_b64": "CiAgICAgICAgIAp7ImlkIjoiZ2VuLTE3OTU0NjUyMDAtMnlnWmtwVWczZVZWczhtZE9GU0EiLCJvYmplY3QiOiJjaGF0LmNvbXBsZXRpb24iLCJjcmVhdGVkIjoxNzk1NDY1MjAwLCJtb2RlbCI6Im9wZW5haS9ncHQtNG8tbWluaSIsInByb3ZpZGVyIjoiT3BlbkFJIiwic3lzdGVtX2ZpbmdlcnByaW50IjoiZnBfZmNmNmUwZDMyNCIsInNlcnZpY2VfdGllciI6ImRlZmF1bHQiLCJjaG9pY2VzIjpbeyJpbmRleCI6MCwibG9ncHJvYnMiOm51bGwsImZpbmlzaF9yZWFzb24iOiJzdG9wIiwibmF0aXZlX2ZpbmlzaF9yZWFzb24iOiJzdG9wIiwibWVzc2FnZSI6eyJyb2xlIjoiYXNzaXN0YW50IiwiY29udGVudCI6IntcImFuc3dlclwiOiBcIkxpdHRsZSBCb3lcIiwgXCJjaXRhdGlvbnNcIjogW1wiUDVcIl19IiwicmVmdXNhbCI6bnVsbCwicmVhc29uaW5nIjpudWxsfX1dLCJ1c2FnZSI6eyJwcm9tcHRfdG9rZW5zIjo3OTMsImNvbXBsZXRpb25fdG9rZW5zIjoxNiwidG90YWxfdG9rZW5zIjo4MDksImNvc3QiOjAuMDAwMTI4NTUsImlzX2J5b2siOmZhbHNlLCJwcm9tcHRfdG9rZW5zX2RldGFpbHMiOnsiY2FjaGVkX3Rva2VucyI6MCwiY2FjaGVfd3JpdGVfdG9rZW5zIjowLCJhdWRpb190b2tlbnMiOjAsInZpZGVvX3Rva2VucyI6MH0sImNvc3RfZGV0YWlscyI6eyJ1cHN0cmVhbV9pbmZlcmVuY2VfY29zdCI6MC4wMDAxMjg1NSwidXBzdHJlYW1faW5mZXJlbmNlX3Byb21wdF9jb3N0IjowLjAwMDExODk1LCJ1cHN0cmVhbV9pbmZlcmVuY2VfY29tcGxldGlvbnNfY29zdCI6MC4wMDAwMDk2fSwiY29tcGxldGlvbl90b2tlbnNfZGV0YWlscyI6eyJyZWFzb25pbmdfdG9rZW5zIjowLCJpbWFnZV90b2tlbnMiOjAsImF1ZGlvX3Rva2VucyI6MH19fQ==",
+  "response_hash": "0xaf8e946cf601e877851f610f7ede7fbe842509191c364c24ecd68f0dae17dd60",
+  "provider_generation_id": "gen-1795465200-2ygZkpUg3eVVs8mdOFSA",
+  "provider_model": "openai/gpt-4o-mini",
+  "commit_tx": "0x0b7940d62cef5800386da9e66843fe2b97bad5a7986760ee4f90d58b3db02866",
+  "commit_block": 73753709,
+  "finalize_tx": "0xd849f20776826f0faf8180230b0650ff060eb7b32dee568c7c9c0249f53911bb",
+  "finalize_block": 73753712,
+  "explorer": {
+   "commit": "https://explorer.testnet.arc.io/tx/0x0b7940d62cef5800386da9e66843fe2b97bad5a7986760ee4f90d58b3db02866",
+   "finalize": "https://explorer.testnet.arc.io/tx/0xd849f20776826f0faf8180230b0650ff060eb7b32dee568c7c9c0249f53911bb",
+   "log_contract": "https://explorer.testnet.arc.io/address/0xc7CfFb4Ae006AccC82813829CCC466B964aBCAE3"
+  }
+ },
+ "how_to_verify": "python3 python/verify_citations.py <this file>"
+}
