@@ -1,0 +1,125 @@
+{
+ "note": "20 English outlets with public RSS and server-rendered article HTML (no hard paywall / JS-only pages), chosen by a fetch+extract probe on 2026-11-24. Spares that also worked: Engadget, Times of India, ABC News (US). Rejected: Sky News, The Hill, Politico, Axios (HTTP 403 to crawlers), CNN (feed 500), CBC (feed timeout), PBS (0 paragraphs), The Independent (empty feed), CBS (many video-only items).",
+ "sources": [
+  {
+   "name": "BBC News",
+   "domain": "bbc.co.uk",
+   "rss_url": "https://feeds.bbci.co.uk/news/rss.xml",
+   "license_note": "Full text is copyrighted by the publisher; kept only in our local cache for verification, never redistributed. Manifests publish title, URL and hashes only."
+  },
+  {
+   "name": "The Guardian",
+   "domain": "theguardian.com",
+   "rss_url": "https://www.theguardian.com/world/rss",
+   "license_note": "Full text is copyrighted by the publisher; kept only in our local cache for verification, never redistributed. Manifests publish title, URL and hashes only."
+  },
+  {
+   "name": "NPR",
+   "domain": "npr.org",
+   "rss_url": "https://feeds.npr.org/1001/rss.xml",
+   "license_note": "Full text is copyrighted by the publisher; kept only in our local cache for verification, never redistributed. Manifests publish title, URL and hashes only."
+  },
+  {
+   "name": "Al Jazeera",
+   "domain": "aljazeera.com",
+   "rss_url": "https://www.aljazeera.com/xml/rss/all.xml",
+   "license_note": "Full text is copyrighted by the publisher; kept only in our local cache for verification, never redistributed. Manifests publish title, URL and hashes only."
+  },
+  {
+   "name": "Deutsche Welle",
+   "domain": "dw.com",
+   "rss_url": "https://rss.dw.com/rdf/rss-en-all",
+   "license_note": "Full text is copyrighted by the publisher; kept only in our local cache for verification, never redistributed. Manifests publish title, URL and hashes only."
+  },
+  {
+   "name": "France 24",
+   "domain": "france24.com",
+   "rss_url": "https://www.france24.com/en/rss",
+   "license_note": "Full text is copyrighted by the publisher; kept only in our local cache for verification, never redistributed. Manifests publish title, URL and hashes only."
+  },
+  {
+   "name": "CNBC",
+   "domain": "cnbc.com",
+   "rss_url": "https://www.cnbc.com/id/100003114/device/rss/rss.html",
+   "license_note": "Full text is copyrighted by the publisher; kept only in our local cache for verification, never redistributed. Manifests publish title, URL and hashes only."
+  },
+  {
+   "name": "The Conversation",
+   "domain": "theconversation.com",
+   "rss_url": "https://theconversation.com/global/articles.atom",
+   "license_note": "Articles are CC BY-ND 4.0 (republishing allowed with attribution, no edits); we still keep full text local."
+  },
+  {
+   "name": "ProPublica",
+   "domain": "propublica.org",
+   "rss_url": "https://www.propublica.org/feeds/propublica/main",
+   "license_note": "Most articles CC BY-NC-ND 3.0 per ProPublica's republishing policy; we still keep full text local."
+  },
+  {
+   "name": "Global Voices",
+   "domain": "globalvoices.org",
+   "rss_url": "https://globalvoices.org/feed/",
+   "license_note": "CC BY 3.0 (with attribution); we still keep full text local."
+  },
+  {
+   "name": "Fox News",
+   "domain": "foxnews.com",
+   "rss_url": "https://moxie.foxnews.com/google-publisher/latest.xml",
+   "license_note": "Full text is copyrighted by the publisher; kept only in our local cache for verification, never redistributed. Manifests publish title, URL and hashes only."
+  },
+  {
+   "name": "RTE News",
+   "domain": "rte.ie",
+   "rss_url": "https://www.rte.ie/feeds/rss/?index=/news/",
+   "license_note": "Full text is copyrighted by the publisher; kept only in our local cache for verification, never redistributed. Manifests publish title, URL and hashes only."
+  },
+  {
+   "name": "Euronews",
+   "domain": "euronews.com",
+   "rss_url": "https://www.euronews.com/rss",
+   "license_note": "Full text is copyrighted by the publisher; kept only in our local cache for verification, never redistributed. Manifests publish title, URL and hashes only."
+  },
+  {
+   "name": "TechCrunch",
+   "domain": "techcrunch.com",
+   "rss_url": "https://techcrunch.com/feed/",
+   "license_note": "Full text is copyrighted by the publisher; kept only in our local cache for verification, never redistributed. Manifests publish title, URL and hashes only."
+  },
+  {
+   "name": "Ars Technica",
+   "domain": "arstechnica.com",
+   "rss_url": "https://feeds.arstechnica.com/arstechnica/index",
+   "license_note": "Full text is copyrighted by the publisher; kept only in our local cache for verification, never redistributed. Manifests publish title, URL and hashes only."
+  },
+  {
+   "name": "The Verge",
+   "domain": "theverge.com",
+   "rss_url": "https://www.theverge.com/rss/index.xml",
+   "license_note": "Full text is copyrighted by the publisher; kept only in our local cache for verification, never redistributed. Manifests publish title, URL and hashes only."
+  },
+  {
+   "name": "NASA",
+   "domain": "nasa.gov",
+   "rss_url": "https://www.nasa.gov/news-release/feed/",
+   "license_note": "US government work, generally public domain (17 U.S.C. 105); images may differ."
+  },
+  {
+   "name": "Phys.org",
+   "domain": "phys.org",
+   "rss_url": "https://phys.org/rss-feed/",
+   "license_note": "Full text is copyrighted by the publisher; kept only in our local cache for verification, never redistributed. Manifests publish title, URL and hashes only."
+  },
+  {
+   "name": "UN News",
+   "domain": "news.un.org",
+   "rss_url": "https://news.un.org/feed/subscribe/en/news/all/rss.xml",
+   "license_note": "United Nations content; reuse per UN terms of use with attribution."
+  },
+  {
+   "name": "The Straits Times",
+   "domain": "straitstimes.com",
+   "rss_url": "https://www.straitstimes.com/news/world/rss.xml",
+   "license_note": "Full text is copyrighted by the publisher; kept only in our local cache for verification, never redistributed. Manifests publish title, URL and hashes only."
+  }
+ ]
+}

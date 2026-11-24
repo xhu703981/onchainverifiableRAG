@@ -30,3 +30,5 @@ node_modules/
 *.log
 !experiments/arc/*.log
 server.pid
+# news registry: DB, raw HTML, venv and logs live in $NEWS_DATA (/workspace/news-data), never in the repo
+news-data/
