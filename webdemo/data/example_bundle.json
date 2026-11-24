@@ -38,19 +38,16 @@
   }
  ],
  "inference": {
+  "log_contract": "0xc7CfFb4Ae006AccC82813829CCC466B964aBCAE3",
+  "answer_id": "0x85d05b73ee0f8c0c0b72d0292e4548892911cd4e03439747207d596b2561cfb3",
+  "question_key": "nq:test58",
+  "question_id": "0x2373e74828b983b8a6d77d3f1ed24d6c4c310226de7eb5eab76d4cd5918f061f",
   "model": "openai/gpt-4o-mini",
-  "nonce": "065b8b45c81dbb561ad7d4ad90a55343",
-  "anchor_block": {
-   "number": 73797151,
-   "hash": "0x924b5ad566f87072f82a3511c5095140f9176c31b48b51d8b8699e5b465b2f36",
-   "timestamp": 1795487473
-  },
-  "retrieval_done_ts": "2026-11-24T02:31:14.503544Z",
-  "client_request_ts": "2026-11-24T02:31:14.503544Z",
-  "client_response_received_ts": "2026-11-24T02:31:15.605006Z",
+  "client_request_ts": "2026-11-23T23:30:23.324747Z",
+  "client_response_received_ts": "2026-11-23T23:30:25.041578Z",
   "serialization": "json.dumps(body, sort_keys=True, separators=(\",\", \":\"), ensure_ascii=False).encode(\"utf-8\")",
-  "request_body": "{\"max_tokens\":150,\"messages\":[{\"content\":\"Request metadata (audit only, do not mention): nonce=065b8b45c81dbb561ad7d4ad90a55343; client_ts=2026-11-24T02:31:14.503544Z; arc_block=73797151:0x924b5ad566f87072f82a3511c5095140f9176c31b48b51d8b8699e5b465b2f36; corpus=v1:0x949fe997d49adee6daa0165f3c30faaf109086919121b0cef125b1b94ed81593; retrieval_config=0x6955cc605c0c878e96fb360c428d7af9006c4004e46409e2722ae3eea1c978ee; retrieval=0xf01f95718619f93d3a1a63ab0798ca274d56936a9ba498bb1aa438aeaed3ec7b\",\"role\":\"system\"},{\"content\":\"Answer the question using ONLY the numbered passages. Cite the passage ids you used.\\nReply with JSON only: {\\\"answer\\\": \\\"<short answer>\\\", \\\"citations\\\": [\\\"P1\\\", ...]}. If the passages do not contain the answer, reply {\\\"answer\\\": \\\"I don't know\\\", \\\"citations\\\": []}.\\n\\n[P1] Hux first appears in The Force Awakens as the commander of the First Order. Hux is part of a mission to Jakku to recover a map to Luke Skywalker, the last Jedi. Kylo Ren leads the search for the map, which they are unable to locate. To prevent the return of the Jedi and to eliminate the Resistance, which, under the command of General Leia Organa, emerged to combat the First Order, Snoke allows Hux to use the Starkiller weapon against the Republic's capital world of Hosnian Prime. The Resistance is left without military support from the Republic, so Hux soon turns the weapon towards the Resistance base on D'Qar. Before he can destroy them, however, an attack squadron led by Commander Poe Dameron, with ground support from Han Solo, former stormtrooper Finn, and the Jakku scavenger Rey, destroys Starkiller Base, forcing Hux, his troops, and a defeated Ren to flee the planet.\\n\\n[P2] A stormtrooper is a fictional soldier in the Star Wars franchise created by George Lucas. Introduced in Star Wars (1977), the stormtroopers are the main ground force of the Galactic Empire, under the leadership of Emperor Palpatine and his commanders, most notably Darth Vader and Grand Moff Tarkin. In The Force Awakens (2015) and The Last Jedi (2017), the upgraded stormtroopers serve the First Order, under the leadership of Supreme Leader Snoke and his commanders, most notably Kylo Ren, General Hux, and Captain Phasma.\\n\\n[P3] General Armitage Hux[1] is a fictional character in the Star Wars franchise. First introduced in the 2015 film Star Wars: The Force Awakens, he is portrayed by Domhnall Gleeson.[2] He is a ruthless commander in a power struggle with Kylo Ren for the First Order leadership, and being exceeded only by Supreme Leader Snoke.[3] The character first featured in The Force Awakens media and merchandising, and returned in the film's sequel, Star Wars: The Last Jedi.\\n\\n[P4] In 2015, Gleeson received widespread recognition and praise for his performances in four Academy Award-nominated films: Caleb in Ex Machina, Jim Farrell in Brooklyn, Captain Andrew Henry in The Revenant, and, most prominently, General Hux in Star Wars: The Force Awakens. In 2017, he appeared in Mother! alongside his brother, Brian, co-starred in American Made, portrayed A. A. Milne in Goodbye Christopher Robin and reprised his role as General Hux in Star Wars: The Last Jedi. In 2018, he starred in a live-action adaptation of Peter Rabbit.\\n\\n[P5] The Jedi are first introduced in the 1977 motion picture Star Wars as an order of warrior monks who serve as \\\"the guardians of peace and justice in the galaxy\\\" and embrace the mystical Force. Obi-Wan Kenobi (Alec Guinness)\\nexplains that the Galactic Empire had all but exterminated the Jedi some twenty years before the events of the film, and seeks to train Luke Skywalker  (Mark Hamill) to be the Jedi Order's last hope. Darth Vader (David Prowse/James Earl Jones) is also established as the Jedi's main enemy. By the end of the film, Luke is on the path to becoming a Jedi. In the sequel, The Empire Strikes Back, Luke receives extensive Jedi training from the elderly (and only surviving) Jedi Master Yoda (Frank Oz), even as he learns that Vader is, in fact, his father, former Jedi Knight Anakin Skywalker. The third film in the original trilogy, Return of the Jedi, ends with Luke redeeming Vader and helping to destroy the Empire, thus fulfilling his destiny as a Jedi.\\n\\nQuestion: who plays general hux in the last jedi\",\"role\":\"user\"}],\"model\":\"openai/gpt-4o-mini\",\"temperature\":0}",
-  "request_hash": "0x4d31ab07e5eca7226a4c48400619b89b08d4723f71b147cd1b2cd423f2b87068",
+  "request_body": "{\"max_tokens\":150,\"messages\":[{\"content\":\"Request metadata (audit only, do not mention): answer_id=0x85d05b73ee0f8c0c0b72d0292e4548892911cd4e03439747207d596b2561cfb3; question_id=0x2373e74828b983b8a6d77d3f1ed24d6c4c310226de7eb5eab76d4cd5918f061f; client_ts=2026-11-23T23:30:23.324747Z; corpus=v1:0x949fe997d49adee6daa0165f3c30faaf109086919121b0cef125b1b94ed81593; retrieval_config=0x6955cc605c0c878e96fb360c428d7af9006c4004e46409e2722ae3eea1c978ee; retrieval=0xf01f95718619f93d3a1a63ab0798ca274d56936a9ba498bb1aa438aeaed3ec7b\",\"role\":\"system\"},{\"content\":\"Answer the question using ONLY the numbered passages. Cite the passage ids you used.\\nReply with JSON only: {\\\"answer\\\": \\\"<short answer>\\\", \\\"citations\\\": [\\\"P1\\\", ...]}. If the passages do not contain the answer, reply {\\\"answer\\\": \\\"I don't know\\\", \\\"citations\\\": []}.\\n\\n[P1] Hux first appears in The Force Awakens as the commander of the First Order. Hux is part of a mission to Jakku to recover a map to Luke Skywalker, the last Jedi. Kylo Ren leads the search for the map, which they are unable to locate. To prevent the return of the Jedi and to eliminate the Resistance, which, under the command of General Leia Organa, emerged to combat the First Order, Snoke allows Hux to use the Starkiller weapon against the Republic's capital world of Hosnian Prime. The Resistance is left without military support from the Republic, so Hux soon turns the weapon towards the Resistance base on D'Qar. Before he can destroy them, however, an attack squadron led by Commander Poe Dameron, with ground support from Han Solo, former stormtrooper Finn, and the Jakku scavenger Rey, destroys Starkiller Base, forcing Hux, his troops, and a defeated Ren to flee the planet.\\n\\n[P2] A stormtrooper is a fictional soldier in the Star Wars franchise created by George Lucas. Introduced in Star Wars (1977), the stormtroopers are the main ground force of the Galactic Empire, under the leadership of Emperor Palpatine and his commanders, most notably Darth Vader and Grand Moff Tarkin. In The Force Awakens (2015) and The Last Jedi (2017), the upgraded stormtroopers serve the First Order, under the leadership of Supreme Leader Snoke and his commanders, most notably Kylo Ren, General Hux, and Captain Phasma.\\n\\n[P3] General Armitage Hux[1] is a fictional character in the Star Wars franchise. First introduced in the 2015 film Star Wars: The Force Awakens, he is portrayed by Domhnall Gleeson.[2] He is a ruthless commander in a power struggle with Kylo Ren for the First Order leadership, and being exceeded only by Supreme Leader Snoke.[3] The character first featured in The Force Awakens media and merchandising, and returned in the film's sequel, Star Wars: The Last Jedi.\\n\\n[P4] In 2015, Gleeson received widespread recognition and praise for his performances in four Academy Award-nominated films: Caleb in Ex Machina, Jim Farrell in Brooklyn, Captain Andrew Henry in The Revenant, and, most prominently, General Hux in Star Wars: The Force Awakens. In 2017, he appeared in Mother! alongside his brother, Brian, co-starred in American Made, portrayed A. A. Milne in Goodbye Christopher Robin and reprised his role as General Hux in Star Wars: The Last Jedi. In 2018, he starred in a live-action adaptation of Peter Rabbit.\\n\\n[P5] The Jedi are first introduced in the 1977 motion picture Star Wars as an order of warrior monks who serve as \\\"the guardians of peace and justice in the galaxy\\\" and embrace the mystical Force. Obi-Wan Kenobi (Alec Guinness)\\nexplains that the Galactic Empire had all but exterminated the Jedi some twenty years before the events of the film, and seeks to train Luke Skywalker  (Mark Hamill) to be the Jedi Order's last hope. Darth Vader (David Prowse/James Earl Jones) is also established as the Jedi's main enemy. By the end of the film, Luke is on the path to becoming a Jedi. In the sequel, The Empire Strikes Back, Luke receives extensive Jedi training from the elderly (and only surviving) Jedi Master Yoda (Frank Oz), even as he learns that Vader is, in fact, his father, former Jedi Knight Anakin Skywalker. The third film in the original trilogy, Return of the Jedi, ends with Luke redeeming Vader and helping to destroy the Empire, thus fulfilling his destiny as a Jedi.\\n\\nQuestion: who plays general hux in the last jedi\",\"role\":\"user\"}],\"model\":\"openai/gpt-4o-mini\",\"temperature\":0}",
+  "request_hash": "0x2a34560593df72130c67fce6a68bec22bb9f034fea8b05358a39a1fb18559865",
   "passages": [
    {
     "id": "P1",
@@ -73,11 +70,21 @@
     "content_hash": "0x7f05b477db5da6c2813fdf8c7b0d20c9e13600fc9d56a0bf7add042788f14b9d"
    }
   ],
-  "response_body_b64": "CiAgICAgICAgIAp7ImlkIjoiZ2VuLTE3OTU0ODc0NzQtQjFKV2xkUFFXQ2Q4aUJqYVpsSEciLCJvYmplY3QiOiJjaGF0LmNvbXBsZXRpb24iLCJjcmVhdGVkIjoxNzk1NDg3NDc0LCJtb2RlbCI6Im9wZW5haS9ncHQtNG8tbWluaSIsInByb3ZpZGVyIjoiT3BlbkFJIiwic3lzdGVtX2ZpbmdlcnByaW50IjoiZnBfNTYzMmZiNzNlNCIsInNlcnZpY2VfdGllciI6ImRlZmF1bHQiLCJjaG9pY2VzIjpbeyJpbmRleCI6MCwibG9ncHJvYnMiOm51bGwsImZpbmlzaF9yZWFzb24iOiJzdG9wIiwibmF0aXZlX2ZpbmlzaF9yZWFzb24iOiJzdG9wIiwibWVzc2FnZSI6eyJyb2xlIjoiYXNzaXN0YW50IiwiY29udGVudCI6IntcImFuc3dlclwiOiBcIkRvbWhuYWxsIEdsZWVzb25cIiwgXCJjaXRhdGlvbnNcIjogW1wiUDNcIiwgXCJQNFwiXX0iLCJyZWZ1c2FsIjpudWxsLCJyZWFzb25pbmciOm51bGx9fV0sInVzYWdlIjp7InByb21wdF90b2tlbnMiOjEwOTIsImNvbXBsZXRpb25fdG9rZW5zIjoyMywidG90YWxfdG9rZW5zIjoxMTE1LCJjb3N0IjowLjAwMDE3NzYsImlzX2J5b2siOmZhbHNlLCJwcm9tcHRfdG9rZW5zX2RldGFpbHMiOnsiY2FjaGVkX3Rva2VucyI6MCwiY2FjaGVfd3JpdGVfdG9rZW5zIjowLCJhdWRpb190b2tlbnMiOjAsInZpZGVvX3Rva2VucyI6MH0sImNvc3RfZGV0YWlscyI6eyJ1cHN0cmVhbV9pbmZlcmVuY2VfY29zdCI6MC4wMDAxNzc2LCJ1cHN0cmVhbV9pbmZlcmVuY2VfcHJvbXB0X2Nvc3QiOjAuMDAwMTYzOCwidXBzdHJlYW1faW5mZXJlbmNlX2NvbXBsZXRpb25zX2Nvc3QiOjAuMDAwMDEzOH0sImNvbXBsZXRpb25fdG9rZW5zX2RldGFpbHMiOnsicmVhc29uaW5nX3Rva2VucyI6MCwiaW1hZ2VfdG9rZW5zIjowLCJhdWRpb190b2tlbnMiOjB9fX0=",
-  "response_hash": "0xb875119dfe9ccbb6d487fa05ed3279a1a19543bcd1999ebfdff1f90c4f294a03",
-  "provider_generation_id": "gen-1795487474-B1JWldPQWCd8iBjaZlHG",
+  "passages_root": "0x31c5591e482a97997c0cc6626e861dc6251f7db8a585110c03748e00f3e2ef8a",
+  "response_body_b64": "CiAgICAgICAgIAp7ImlkIjoiZ2VuLTE3OTU0NzY2MjQtVUQ4MmdmekE5ek5RQjAwUU1tWXkiLCJvYmplY3QiOiJjaGF0LmNvbXBsZXRpb24iLCJjcmVhdGVkIjoxNzk1NDc2NjI0LCJtb2RlbCI6Im9wZW5haS9ncHQtNG8tbWluaSIsInByb3ZpZGVyIjoiT3BlbkFJIiwic3lzdGVtX2ZpbmdlcnByaW50IjoiZnBfZTYxZDA5ZmYwOCIsInNlcnZpY2VfdGllciI6ImRlZmF1bHQiLCJjaG9pY2VzIjpbeyJpbmRleCI6MCwibG9ncHJvYnMiOm51bGwsImZpbmlzaF9yZWFzb24iOiJzdG9wIiwibmF0aXZlX2ZpbmlzaF9yZWFzb24iOiJzdG9wIiwibWVzc2FnZSI6eyJyb2xlIjoiYXNzaXN0YW50IiwiY29udGVudCI6IntcImFuc3dlclwiOiBcIkRvbWhuYWxsIEdsZWVzb25cIiwgXCJjaXRhdGlvbnNcIjogW1wiUDNcIiwgXCJQNFwiXX0iLCJyZWZ1c2FsIjpudWxsLCJyZWFzb25pbmciOm51bGx9fV0sInVzYWdlIjp7InByb21wdF90b2tlbnMiOjExMTIsImNvbXBsZXRpb25fdG9rZW5zIjoyMywidG90YWxfdG9rZW5zIjoxMTM1LCJjb3N0IjowLjAwMDE4MDYsImlzX2J5b2siOmZhbHNlLCJwcm9tcHRfdG9rZW5zX2RldGFpbHMiOnsiY2FjaGVkX3Rva2VucyI6MCwiY2FjaGVfd3JpdGVfdG9rZW5zIjowLCJhdWRpb190b2tlbnMiOjAsInZpZGVvX3Rva2VucyI6MH0sImNvc3RfZGV0YWlscyI6eyJ1cHN0cmVhbV9pbmZlcmVuY2VfY29zdCI6MC4wMDAxODA2LCJ1cHN0cmVhbV9pbmZlcmVuY2VfcHJvbXB0X2Nvc3QiOjAuMDAwMTY2OCwidXBzdHJlYW1faW5mZXJlbmNlX2NvbXBsZXRpb25zX2Nvc3QiOjAuMDAwMDEzOH0sImNvbXBsZXRpb25fdG9rZW5zX2RldGFpbHMiOnsicmVhc29uaW5nX3Rva2VucyI6MCwiaW1hZ2VfdG9rZW5zIjowLCJhdWRpb190b2tlbnMiOjB9fX0=",
+  "response_hash": "0xd0c130c90b74c8777c5726ecca45280c784157a2e29b652b581e065aa0e9ae25",
+  "provider_generation_id": "gen-1795476624-UD82gfzA9zNQB00QMmYy",
   "provider_model": "openai/gpt-4o-mini",
-  "provider": "OpenAI"
+  "provider": "OpenAI",
+  "commit_tx": "0x28ffca715589c53c167cf05d5488ae7374b70bf979e303b651f4c89a11f5c6cd",
+  "commit_block": 73776187,
+  "finalize_tx": "0x2445f007430a66fb4f309ad96096b2004c62383a5c2090caf49d3ef0569b7e9f",
+  "finalize_block": 73776191,
+  "explorer": {
+   "commit": "https://explorer.testnet.arc.io/tx/0x28ffca715589c53c167cf05d5488ae7374b70bf979e303b651f4c89a11f5c6cd",
+   "finalize": "https://explorer.testnet.arc.io/tx/0x2445f007430a66fb4f309ad96096b2004c62383a5c2090caf49d3ef0569b7e9f",
+   "log_contract": "https://explorer.testnet.arc.io/address/0xc7CfFb4Ae006AccC82813829CCC466B964aBCAE3"
+  }
  },
  "retrieval": {
   "corpus_registry": "0x1Fb5aDDb3CdB5DE1945f3Ab32c7FF0b6d2CDA2de",
@@ -898,75 +905,5 @@
    "publish": "https://explorer.testnet.arc.io/tx/0xee5e5ada224115fbc8b0c8df41b05cdbaacbaefc97f157d256ace4afd2c74bed"
   }
  },
- "how_to_verify": "python verify_citations.py <this file>",
- "answer_root": {
-  "registry": "0x580D6da6594b81e7631Ed8B5E46ae06F5C1617e0",
-  "root": "0x44ec83f3dfb3c3a4eab6b3be8eb47fcf0a513fffd26702c5c494b4d47067c283",
-  "scheme": "leaf = sha256(0x00 || sha256(label || 0x00 || value)); node = sha256(0x01 || l || r); odd node promoted",
-  "leaves": [
-   {
-    "label": "corpus_root",
-    "value": "0x949fe997d49adee6daa0165f3c30faaf109086919121b0cef125b1b94ed81593"
-   },
-   {
-    "label": "retrieval_config",
-    "value": "0x6955cc605c0c878e96fb360c428d7af9006c4004e46409e2722ae3eea1c978ee"
-   },
-   {
-    "label": "anchor_block",
-    "value": "73797151:0x924b5ad566f87072f82a3511c5095140f9176c31b48b51d8b8699e5b465b2f36"
-   },
-   {
-    "label": "question",
-    "value": "who plays general hux in the last jedi"
-   },
-   {
-    "label": "ranked",
-    "value": "0xf01f95718619f93d3a1a63ab0798ca274d56936a9ba498bb1aa438aeaed3ec7b"
-   },
-   {
-    "label": "t_retrieval",
-    "value": "2026-11-24T02:31:14.503544Z"
-   },
-   {
-    "label": "request",
-    "value": "0x4d31ab07e5eca7226a4c48400619b89b08d4723f71b147cd1b2cd423f2b87068"
-   },
-   {
-    "label": "t_request",
-    "value": "2026-11-24T02:31:14.503544Z"
-   },
-   {
-    "label": "model",
-    "value": "openai/gpt-4o-mini"
-   },
-   {
-    "label": "served_model",
-    "value": "openai/gpt-4o-mini"
-   },
-   {
-    "label": "provider",
-    "value": "OpenAI"
-   },
-   {
-    "label": "response",
-    "value": "0xb875119dfe9ccbb6d487fa05ed3279a1a19543bcd1999ebfdff1f90c4f294a03"
-   },
-   {
-    "label": "t_response",
-    "value": "2026-11-24T02:31:15.605006Z"
-   },
-   {
-    "label": "answer",
-    "value": "0x6fec164e99a879674f496cb62b2c32f79e0677108e7a84870e7c6be844ae494a"
-   }
-  ],
-  "recorder": "0x5A4fcaAEaAE1e5edD3F631fF99D84f020D691B33",
-  "record_tx": "0xd1ae26858e1f5422cfaba07cac8e44d30ae192f3e34319677739c0b0565495fa",
-  "record_block": 73797157,
-  "explorer": {
-   "tx": "https://explorer.testnet.arc.io/tx/0xd1ae26858e1f5422cfaba07cac8e44d30ae192f3e34319677739c0b0565495fa",
-   "registry": "https://explorer.testnet.arc.io/address/0x580D6da6594b81e7631Ed8B5E46ae06F5C1617e0"
-  }
- }
+ "how_to_verify": "python verify_citations.py <this file>"
 }

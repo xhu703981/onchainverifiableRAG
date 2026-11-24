@@ -45,7 +45,7 @@
       body.querySelector(".ptx").innerHTML = on ? `<div class="ptext">${esc(b.citations[+el.dataset.i].text)}</div>` : ""; }));
     const dl = body.querySelector("[data-a=dl]");
     if (dl) dl.onclick = () => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(b, null, 1)], { type: "application/json" }));
-      a.download = `bundle_${(b.answer_root ? b.answer_root.root.slice(2, 12) : b.inference ? b.inference.answer_id.slice(2, 12) : "answer")}.json`; a.click(); };
+      a.download = `bundle_${(b.inference ? b.inference.answer_id.slice(2, 12) : "answer")}.json`; a.click(); };
     body.querySelector("[data-a=verify]").onclick = () => verify(body, b, false);
     const tb = body.querySelector("[data-a=tamper]");
     if (tb) tb.onclick = () => body.querySelector(".menu").classList.toggle("on");
@@ -61,22 +61,15 @@
     return (rs && rs[0]) || "source check failed"; }
   const allOk = (a) => a.every((x) => x.ok);
   const firstBad = (a) => (a.find((x) => !x.ok) || {}).check || "";
-  const strip = (s) => s.replace(/^[MCA]\d /, "");
-  // single-root bundles: a node whose leaf no longer matches says so (leaf names in plain words)
-  const LEAF_WORD = { corpus_root: "corpus root", retrieval_config: "retrieval config", anchor_block: "anchor block", question: "question", ranked: "ranking",
-    t_retrieval: "retrieval time", request: "prompt", t_request: "prompt time", model: "requested model", served_model: "served model", provider: "provider",
-    response: "response", t_response: "response time", answer: "answer" };
-  const leafWhy = (cs) => { const ls = cs.filter((x) => /^A2 \w+ leaf/.test(x.check) && x.ok === false).map((x) => LEAF_WORD[x.check.split(" ")[1]]);
-    return ls.length ? `${ls.join(", ")} changed: no longer matches the answer root on Arc` : ""; };
+  const strip = (s) => s.replace(/^[MC]\d /, "");
   function build(b, v) {
     const mc = v ? v.model_call : [], tagged = (t) => mc.filter((x) => x.tag === t), inf = b.inference;
     const rec = tagged("record"), recOk = allOk(rec);
     const headOk = v ? allOk(v.header) : true;
     const cols = [];
-    if (b.retrieval) { const cc = v ? (v.corpus || []).concat(tagged("corpus")) : [], R = b.retrieval, f = (re) => cc.find((x) => re.test(x.check) && x.ok === false);
+    if (b.retrieval) { const cc = v ? v.corpus || [] : [], R = b.retrieval, f = (re) => cc.find((x) => re.test(x.check) && x.ok === false);
       const skipped = cc.some((x) => x.ok === null), rp = f(/^C5 replaying/);
-      const lw = leafWhy(cc);
-      const why = lw ? "corpus: " + lw : rp ? (/omits/.test(rp.detail) ? "corpus: replaying retrieval finds a document the answer's ranking left out" : "corpus: replaying retrieval gives a different ranking")
+      const why = rp ? (/omits/.test(rp.detail) ? "corpus: replaying retrieval finds a document the answer's ranking left out" : "corpus: replaying retrieval gives a different ranking")
         : f(/^C3 every ranked/) ? "corpus: a candidate is not in the committed corpus"
         : f(/^C4/) ? "corpus: a trusted candidate was skipped when building the prompt"
         : f(/^C2 corpus/) ? "corpus: the ranking differs from the one committed before the model call"
@@ -84,8 +77,7 @@
         : "corpus: " + strip(firstBad(cc));
       cols.push([{ k: "c", lbl: "Corpus", sub: `${Number(R.leaf_count).toLocaleString("en-US")} passages`, tags: ["corpus"], checks: cc,
         ok: v ? cc.length > 0 && cc.every((x) => x.ok !== false) : true, why, skipped }]); }
-    const qc = v ? v.header.concat(tagged("net")) : [];
-    cols.push([{ k: "q", lbl: "Question", sub: "Arc testnet", tags: ["net"], checks: qc, ok: v ? allOk(qc) : true, why: leafWhy(qc) ? "question: " + leafWhy(qc) : "network: " + firstBad(qc) }]);
+    cols.push([{ k: "q", lbl: "Question", sub: "Arc testnet", tags: ["net"], checks: v ? v.header : [], ok: headOk, why: "network: " + firstBad(v ? v.header : []) }]);
     const srcs = (b.citations || []).map((c, i) => { const r = v && v.citations[i], m3 = tagged("src:" + i);
       const ok = r ? r.status === "PASS" && allOk(m3) : true;
       const checks = r ? (r.status === "PASS" ? (r.notes || []).map((n) => ({ check: n, ok: true })) : r.reasons.map((x) => ({ check: x, ok: false }))).concat(m3) : [];
@@ -94,14 +86,13 @@
     cols.push(srcs.length ? srcs : [{ k: "s", lbl: "Sources", sub: "none cited", tags: [], checks: [], ok: true }]);
     if (inf) {
       const nodeOk = (cs) => (v ? cs.length > 0 && allOk(cs) && recOk : true);
-      const pc = rec.concat(tagged("prompt")), mcK = tagged("model"), ac = tagged("answer"), md = v && v.model, AR = b.answer_root;
-      const lwP = leafWhy(pc), lwM = leafWhy(mcK), lwA = leafWhy(ac);
-      cols.push([{ k: "p", lbl: "Prompt", sub: AR ? "after block " + inf.anchor_block.number : "block " + inf.commit_block, tags: ["record", "prompt"], checks: pc, ok: nodeOk(pc),
-        why: !recOk ? (AR ? "answer root: " : "log record: ") + strip(firstBad(rec)) : lwP ? "prompt: " + lwP : mc.some((x) => /^M2 sha256/.test(x.check) && !x.ok) ? "prompt: bytes differ from the hash committed on-chain" : "prompt: " + strip(firstBad(pc)) }]);
+      const pc = rec.concat(tagged("prompt")), mcK = tagged("model"), ac = tagged("answer"), md = v && v.model;
+      cols.push([{ k: "p", lbl: "Prompt", sub: "block " + inf.commit_block, tags: ["record", "prompt"], checks: pc, ok: nodeOk(pc),
+        why: !recOk ? "log record: " + strip(firstBad(rec)) : mc.some((x) => /^M2 sha256/.test(x.check) && !x.ok) ? "prompt: bytes differ from the hash committed on-chain" : "prompt: " + strip(firstBad(pc)) }]);
       cols.push([{ k: "m", lbl: bare(inf.model), wide: 1, sub: md ? `served by ${md.provider || "unknown"}` : "requested", tags: ["model"], rec: 1, checks: mcK, ok: nodeOk(mcK),
-        why: "model: " + (lwM && !(md && !md.match) ? lwM : md && !md.match ? `requested ${bare(md.requested)}, served ${bare(md.served)}` : mc.some((x) => /^M4 sha256/.test(x.check) && !x.ok) ? "response bytes don't match the on-chain hash" : "differs from the model committed on-chain") }]);
-      cols.push([{ k: "a", lbl: "Answer", sub: "block " + (AR ? AR.record_block : inf.finalize_block), tags: ["answer"], rec: 1, checks: ac, ok: nodeOk(ac),
-        why: "answer: " + (lwA ? lwA : ac.some((x) => /^M4 bundle answer/.test(x.check) && !x.ok) ? "differs from the response logged on-chain" : ac.some((x) => /^M4 sha256/.test(x.check) && !x.ok) ? "response bytes don't match the on-chain hash" : strip(firstBad(ac))) }]);
+        why: "model: " + (md && !md.match ? `requested ${bare(md.requested)}, served ${bare(md.served)}` : mc.some((x) => /^M4 sha256/.test(x.check) && !x.ok) ? "response bytes don't match the on-chain hash" : "differs from the model committed on-chain") }]);
+      cols.push([{ k: "a", lbl: "Answer", sub: "block " + inf.finalize_block, tags: ["answer"], rec: 1, checks: ac, ok: nodeOk(ac),
+        why: "answer: " + (ac.some((x) => /^M4 bundle answer/.test(x.check) && !x.ok) ? "differs from the response logged on-chain" : ac.some((x) => /^M4 sha256/.test(x.check) && !x.ok) ? "response bytes don't match the on-chain hash" : strip(firstBad(ac))) }]);
     }
     return cols;
   }
@@ -117,10 +108,8 @@
   const cmdRow = (cmd) => `<div class="cmdline"><code>${esc(cmd)}</code>${copyBtn(cmd)}</div>`;
   function evidenceHTML(n, v) {
     const ev = v.evidence || {}, items = [].concat(...n.tags.map((t) => ev[t] || []));
-    if (n.rec) items.unshift(...(ev.record || []).filter((x) => x.kind === "rpc" && /213681cd|d1c60a3a/.test(JSON.stringify(x.req.params))));
+    if (n.rec) items.unshift(...(ev.record || []).filter((x) => x.kind === "rpc" && /213681cd/.test(JSON.stringify(x.req.params))));
     let h = "";
-    const rt = (ev.root || [])[0];
-    if (rt) h += rootHTML(rt, n);
     if (n.checks.length) h += `<h4>Checks</h4>` + n.checks.map((c) => `<div class="ck ${c.ok === null ? "skip" : c.ok ? "ok" : "bad"}"><i></i><span>${esc(disp(strip(c.check)))}${c.detail && (!c.ok || /^M6|^C[1345]/.test(c.check)) ? `<span class="d">${esc(disp(c.detail))}</span>` : ""}</span></div>`).join("");
     if (n.k === "c") h += corpusHTML(items, n);
     const cmps = items.filter((x) => x.kind === "cmp" || x.kind === "fact");
@@ -141,16 +130,6 @@
         ${x.href ? `<span class="k">explorer</span><span><a target="_blank" rel="noopener" href="${esc(x.href)}">${esc(x.href.replace(/^https:\/\//, "").replace(/(0x[0-9a-fA-F]{8})[0-9a-fA-F]{24,}/, "$1…"))} ↗</a></span>` : ""}</div></details>`; }).join("") + `</div>`;
     return h;
   }
-
-  // ---------- answer root: the leaves and that they hash to the one on-chain value ----------
-  function rootHTML(r, n) {
-    const mineTags = n.tags.concat(n.k === "c" ? ["corpus"] : []), same = r.recomputed === r.root;
-    return `<h4>Answer root <small>${r.leaves.length} leaves, hashed in your browser</small></h4><div class="ev"><div class="lv">` +
-      r.leaves.map((x) => `<span class="${mineTags.includes(x.tag) ? "me" : ""}">${esc(x.label)}${x.self ? "<sup>*</sup>" : ""}</span><span class="v ${mineTags.includes(x.tag) ? "me" : ""}">${esc(short2(x.value))}</span><span class="${x.ok ? "ok" : "bad"}">${x.ok ? "≡" : "≠ changed"}</span>`).join("") +
-      `</div><div class="kv"><span class="k">recomputed</span><span class="v">${hexSpans(r.recomputed, r.root)}</span><span class="k">on Arc</span><span class="v">${hexSpans(r.root, r.recomputed)}</span></div>
-      <div class="more">${same ? "≡ identical" : "≠ differs"} · <sup>*</sup> self-reported time</div></div>`;
-  }
-  const short2 = (v) => { v = String(v); return /^0x[0-9a-f]{64}$/.test(v) ? v.slice(0, 10) + "…" + v.slice(-4) : /^\d+:0x[0-9a-f]{64}$/.test(v) ? v.replace(/:(0x[0-9a-f]{6})[0-9a-f]+$/, ":$1…") : v.length > 34 ? v.slice(0, 32) + "…" : v; };
 
   // ---------- corpus evidence: proof path + replay ----------
   const short = (h) => esc(String(h).slice(0, 10)) + "…" + esc(String(h).slice(-4));
@@ -185,7 +164,7 @@
     body.querySelector(".ptx").innerHTML = "";
     const vf = body.querySelector(".vf"), cols0 = build(b, null);
     vf.innerHTML = `<div class="flow">${cols0.map((c, i) => (i ? `<div class="link" data-l="${i}"></div>` : "") + `<div class="col${c.length > 1 ? " multi" : ""}" data-c="${i}">${c.map(nodeHTML).join("")}</div>`).join("")}</div>
-      <div class="why"></div><div class="root"></div><div class="how"></div><div class="hint"></div><div class="det"></div>`;
+      <div class="why"></div><div class="how"></div><div class="hint"></div><div class="det"></div>`;
     vf.querySelector(".det").style.display = "none";
     const t0 = performance.now(); let v;
     const how = vf.querySelector(".how");
@@ -217,16 +196,6 @@
     const why = vf.querySelector(".why");
     if (bad) { why.className = "why"; why.innerHTML = SEAL(false) + `<span>${esc(disp(bad.why))}</span>` + (tampered ? `<span class="tag">tampered ${esc(disp(b._t || "copy"))}</span>` : ""); }
     else { why.className = "why okk"; why.innerHTML = SEAL(true) + `<span>${v.all_pass ? "Verified on Arc" : "Model call verified, but no sources were cited"}</span>`; }
-    const rl = vf.querySelector(".root"), rt = ((v.evidence || {}).root || [])[0];
-    if (b.answer_root && rt) {
-      const R = b.answer_root, X = A().EXPLORER, cast = `cast call ${R.registry} "recordOf(bytes32)(address,uint64,uint64)" ${R.root} --rpc-url ${A().RPC_URL}`;
-      const w = rt.window, nf = (x) => Number(x).toLocaleString("en-US");
-      rl.innerHTML = `<div class="rh"><span class="k">answer root</span><code>${esc(R.root)}</code>${copyBtn(R.root)}<a target="_blank" rel="noopener" href="${esc(X + "/tx/" + R.record_tx)}">explorer ↗</a></div>
-        ${rt.recomputed !== R.root ? `<div class="rh bad"><span class="k">your copy</span><code>${esc(rt.recomputed)}</code><span>≠ root on Arc</span></div>` : ""}
-        <div class="cmdline"><code>${esc(cast)}</code>${copyBtn(cast)}</div>
-        <div class="win ${w.ok ? "" : "bad"}">${w.ok ? `Asked and answered between block ${nf(w.from)} and block ${nf(w.to)} (${w.secs} s).` : `Time window not proven: anchor block ${nf(w.from)} does not check out.`}</div>`;
-      rl.querySelectorAll("[data-copy]").forEach((c) => (c.onclick = (e) => { e.preventDefault(); navigator.clipboard && navigator.clipboard.writeText(c.dataset.copy); c.textContent = "copied"; setTimeout(() => (c.textContent = "copy"), 1200); }));
-    }
     vf.querySelector(".hint").textContent = "Click a node to see the on-chain evidence.";
     G.__lastVerify = v;
     vf.querySelector(".how").textContent = `Checked in your browser, directly against ${new URL(v.rpc).host}: ${v.rpc_calls} RPC calls, ${mine} to our server${b.retrieval ? `; replay files from ${(v.evidence.corpus || []).some((x) => x.kind === "replay" && x.arts) ? "raw.githubusercontent.com, sha256-checked" : "—"}` : ""}.`;

@@ -12,8 +12,8 @@ First-time setup (already done): `py -3.11 -m venv .venv; .\.venv\Scripts\pip in
 ## What happens when you ask
 1. Hybrid retrieval (`retrieval_v1.py`) over the **committed corpus**: 30 PoisonedRAG NQ questions, 1,498 real passages + 500 attacker fakes = 1,998 passages. BM25 + dense embeddings (model2vec potion-base-8M), RRF fusion, top-50 ranked candidates.
 2. One live `SourceRegistry.areVerified` call on Arc drops every candidate that is not registered by a trusted publisher. The attacker's fakes are registered on-chain too, but by an untrusted wallet, so they are dropped. The page shows how many were filtered.
-3. The top-5 verified passages go into a prompt. The prompt's metadata line carries `corpus=v1:<root>`, `retrieval_config=<hash>` and `retrieval=sha256(ranked candidate list)`. It also carries a `nonce`, the client time and `arc_block=<number>:<hash>`, the latest Arc block fetched before retrieval.
-4. openai/gpt-4o-mini (via OpenRouter) answers. Then **one** tx, `AnswerRegistry.record(root)`, stores the answer root: a Merkle root (same SHA-256 tree as the corpus) over 14 fixed, labeled leaves, `x = sha256(label || 0x00 || value)`, in this order: `corpus_root, retrieval_config, anchor_block, question, ranked, t_retrieval*, request, t_request*, model, served_model, provider, response, t_response*, answer` (* self-reported times; `answer` = sha256 of the answer plus each cited id and text hash). The bundle carries the leaves; the verifier recomputes every one from the bundle (A1–A3), so any edit changes the root, and the anchor block hash plus the record block give a "between block A and B" window. `vc.answer_leaf_proof` gives a short Merkle path for checking a single leaf. Bundles from the earlier two-tx `InferenceLog` flow still verify (M1–M6).
+3. The top-5 verified passages go into a prompt. The prompt's metadata line carries `corpus=v1:<root>`, `retrieval_config=<hash>` and `retrieval=sha256(ranked candidate list)`. `InferenceLog.commit` stores sha256(exact request bytes) plus a root over the passage hashes **before** the call. So the full ranking is fixed on-chain before the model answers.
+4. openai/gpt-4o-mini (via OpenRouter) answers. `InferenceLog.finalize` stores sha256(raw response bytes) in a later block.
 
 ## Corpus commitment (CorpusRegistry 0x1Fb5aDDb3CdB5DE1945f3Ab32c7FF0b6d2CDA2de, v1)
 - **Merkle tree**: SHA-256, domain separated. leaf = sha256(0x00 ‖ passageHash), where passageHash = sha256(UTF-8 text). node = sha256(0x01 ‖ left ‖ right). Leaves are sorted by passageHash, and an odd node at the end of a level is promoted unchanged. Proofs are `{leaf_index, path}`, and the leaf count comes from the chain. 1,998 leaves, ≤ 11 siblings per proof.
@@ -38,8 +38,8 @@ First-time setup (already done): `py -3.11 -m venv .venv; .\.venv\Scripts\pip in
 
 Trust gap: the log proves *which* exact request/response bytes existed and when. It does not prove that OpenRouter actually ran the model on them. Reasoning is not verified. The replay proves the ranking follows from the committed corpus and retriever, not that the corpus is complete. C4 uses the *current* allowlist.
 
-Contracts: SourceRegistry 0x9350E7E458abe568B40c1Fc28c66dE674865878e · AnswerRegistry 0x580D6da6594b81e7631Ed8B5E46ae06F5C1617e0 · InferenceLog (earlier bundles) 0xc7CfFb4Ae006AccC82813829CCC466B964aBCAE3 · CorpusRegistry 0x1Fb5aDDb3CdB5DE1945f3Ab32c7FF0b6d2CDA2de.
-Cost per question: about 0.0015 testnet USDC of gas (one `record` tx) plus about $0.0001 for gpt-4o-mini.
+Contracts: SourceRegistry 0x9350E7E458abe568B40c1Fc28c66dE674865878e · InferenceLog 0xc7CfFb4Ae006AccC82813829CCC466B964aBCAE3 · CorpusRegistry 0x1Fb5aDDb3CdB5DE1945f3Ab32c7FF0b6d2CDA2de.
+Cost per question: about 0.005 testnet USDC of gas (commit + finalize) plus about $0.0001 for gpt-4o-mini.
 
 No-cost preview of the saved example: http://127.0.0.1:8765/?demo=verify  (or ?demo=answer, ?demo=tamper, ?demo=model, ?demo=hide, ?demo=corpus)
 

@@ -11,7 +11,6 @@ def norm(r):
                 corpus=[(x["check"], x["ok"], x["detail"]) for x in r.get("corpus", [])])
 
 cases = [("example", os.path.join(HERE, "../data/example_bundle.json"), m) for m in ["", "char", "answer", "prompt", "model", "hide"]]
-cases += [("inferencelog_v1", os.path.join(HERE, "../data/example_bundle_inferencelog.json"), m) for m in ["", "answer"]]
 cases += [(os.path.basename(f), f, "") for f in sorted(glob.glob(os.path.join(HERE, "../../experiments/demo/bundle_*.json")))]
 bad = 0
 import time

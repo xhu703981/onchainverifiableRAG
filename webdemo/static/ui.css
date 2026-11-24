@@ -97,22 +97,6 @@ h1{font:700 21px/1.15 var(--sans);letter-spacing:-.01em;margin:0;color:var(--ink
 .why.okk{color:var(--cobalt)}
 .why svg{flex:none}
 .how{font-size:13px;line-height:1.5;color:var(--muted);margin-top:6px;font-variant-numeric:tabular-nums}
-.root:empty{display:none}
-.root{margin-top:8px;display:grid;gap:4px;max-width:100%}
-.root .rh{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;font-size:13px}
-.root .rh .k{color:var(--muted)}
-.root .rh code{font:400 13px var(--mono);color:var(--ink);word-break:break-all}
-.root .rh.bad,.root .rh.bad code{color:var(--void)}
-.root .rh a{color:var(--cobalt);font-size:13px;white-space:nowrap}
-.root .win{font-size:13px;color:var(--ink);font-variant-numeric:tabular-nums}
-.root .win.bad{color:var(--void)}
-.lv{display:grid;grid-template-columns:max-content 1fr max-content;gap:1px 14px;font:400 13px/1.6 var(--sans);color:var(--muted);background:var(--paper);border-radius:var(--r-ctl);padding:8px 12px;margin-bottom:6px}
-.lv .v{font-family:var(--mono);color:var(--text);word-break:break-all;min-width:0}
-.lv .me{color:var(--ink)}
-.lv span.me:not(.v){font-weight:700}
-.lv .ok{color:var(--cobalt)}
-.lv .bad{color:var(--void);font-weight:600}
-.lv sup,.more sup{font-size:10px}
 .hint{font-size:13px;line-height:1.5;color:var(--ink);margin-top:2px}
 .hint:empty{display:none}
 .tag{font:500 12px var(--sans);color:var(--void);background:var(--void-wash);border-radius:4px;padding:1px 8px;line-height:20px}
