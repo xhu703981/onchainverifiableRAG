@@ -33,7 +33,7 @@ flowchart LR
 - Tampered bundles (an edited passage, an edited prompt, an altered answer, a fake citation) all fail verification.
 - A dishonest server that drops the best trusted document *and commits consistently* passes every hash check, but fails the replay. A passage that isn't in the corpus fails its inclusion proof.
 
-![verify](webdemo/screens/verify.png)
+![verify with on-chain evidence](webdemo/screens/readme_evidence.png)
 
 **Contracts (Arc testnet, chain 5042002)**
 - SourceRegistry: [`0x9350E7E458abe568B40c1Fc28c66dE674865878e`](https://explorer.testnet.arc.io/address/0x9350E7E458abe568B40c1Fc28c66dE674865878e)
