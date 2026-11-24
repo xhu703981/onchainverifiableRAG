@@ -43,3 +43,14 @@ flowchart LR
 **Verify it yourself.** Open [`verify.html`](verify.html), a single local file that needs no server and talks only to `rpc.testnet.arc.io` (plus the hash-checked corpus and model files on GitHub for the replay), and drop in a bundle. Every check shows the raw RPC request and response, plus a `cast` command that reproduces it.
 
 **Limitation.** The log proves which exact prompt and response existed and when, and that the cited sources are genuine. It does not prove that the provider actually ran the model on that prompt, and it does not verify the model's reasoning. The served model and provider are self-reported by the provider, not cryptographically proven. The replay proves the ranking follows from the committed corpus and retriever. It doesn't prove the corpus itself is complete or unbiased, and the trust filter is re-checked against the current allowlist.
+
+## Next: verifiable news (phase 1, [`news/`](news/README.md))
+
+The same idea on a live corpus: 20 English news feeds are crawled hourly, split into paragraphs and committed as Merkle roots in
+**NewsRegistry** on Arc testnet ([`0x124FcEfe59dAdbE5f6517E709b5C6A3988Ab6F64`](https://explorer.testnet.arc.io/address/0x124FcEfe59dAdbE5f6517E709b5C6A3988Ab6F64)),
+with manifests (metadata + roots, no text) on the [`news-manifests`](https://github.com/xhu703981/onchainverifiableRAG/tree/news-manifests/manifests) branch.
+Answers come only from paragraphs in trusted batches, every sentence cites one, and anyone can check that a cited paragraph is
+word for word from the article, URL and outlet it claims, registered by a key they trust, and seen by the model. It proves sources,
+not truth; and since full text can't be redistributed, an article left out of retrieval is not detectable.
+
+![news answer verified in the browser](webdemo/screens/news_verify.png)

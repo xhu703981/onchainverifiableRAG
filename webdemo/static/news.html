@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Verifiable News</title>
+<link rel="preload" href="/static/fonts/atkinson-next.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/static/ui.css">
+<style>
+.asof{font:500 13px/1.4 var(--mono);color:var(--muted);margin:0 0 18px}
+.asof b{color:var(--ink);font-weight:600}
+.ans{font-size:18px;line-height:1.6;color:var(--ink);margin:0 0 20px}
+.s .pid{font:600 12px var(--mono);color:var(--cobalt);background:var(--cobalt-wash);border-radius:4px;padding:1px 5px;margin-left:3px;cursor:pointer;border:0}
+.s.unv{background:repeating-linear-gradient(90deg,var(--void-wash) 0 6px,transparent 6px 8px) bottom/100% 2px no-repeat}
+.unvtag{font:600 11px var(--mono);color:var(--void);text-transform:uppercase;letter-spacing:.04em;margin-left:4px}
+.abst{font-size:14px;color:var(--muted);margin:-8px 0 18px}
+.src{border-top:1px solid var(--rule);padding:14px 0}
+.src h4{margin:0 0 4px;font:600 15px/1.35 var(--sans);color:var(--ink)}
+.src .lab{font:600 11px var(--mono);text-transform:uppercase;letter-spacing:.05em;color:var(--cobalt)}
+.src blockquote{margin:8px 0;padding:8px 12px;background:var(--field);border-left:3px solid var(--cobalt);font-size:15px}
+.kv{display:grid;grid-template-columns:max-content 1fr;gap:2px 12px;font-size:13px;color:var(--muted)}
+.kv span:nth-child(odd){font-family:var(--mono)}
+.claim{color:var(--muted);font-style:italic}
+.proven{color:var(--cobalt);font-weight:600}
+.checks{list-style:none;padding:0;margin:8px 0;font-size:13px}
+.checks li{padding:2px 0}
+.checks .ok::before{content:"● ";color:var(--cobalt)} .checks .bad::before{content:"✕ ";color:var(--void)} .checks .skip::before{content:"○ ";color:var(--muted)}
+.checks .bad{color:var(--void)}
+.vbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:14px 0;font-size:14px}
+.vbar button{background:var(--ink);color:#fff;border:0;border-radius:var(--r-ctl);padding:7px 14px;cursor:pointer}
+.vbar .ghost{background:none;color:var(--cobalt);text-decoration:underline;padding:0}
+.res{font:600 14px var(--sans)} .res.pass{color:var(--cobalt)} .res.fail{color:var(--void)}
+.note{font-size:13px;color:var(--muted);border-top:1px solid var(--rule);padding-top:10px;margin-top:18px}
+.turn{margin-bottom:56px}.q{font:600 15px var(--sans);color:var(--muted);margin:0 0 8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top"><h1>Verifiable News</h1>
+    <p>Answers only from news paragraphs registered on Arc testnet. You check the source text yourself, in your browser.</p>
+    <p id="stat" style="font-family:var(--mono);font-size:12px"></p></header>
+  <main class="main"><div class="chips" id="chips"></div><div id="thread"></div></main>
+</div>
+<div class="ask"><form id="f"><div class="in"><input id="q" placeholder="Ask about recent news" aria-label="Question" autocomplete="off"><button id="go" aria-label="Ask">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button></div></form></div>
+<script src="/static/noble-hashes.min.js"></script>
+<script src="/static/arcverify.js"></script>
+<script src="/static/newsverify.js"></script>
+<script>
+const $ = (s, r = document) => r.querySelector(s), esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const EXP = "https://explorer.testnet.arc.io";
+const fmt = (t) => t ? t.replace("T", " ").replace("Z", " UTC") : "not given";
+fetch("/api/news/status").then((r) => r.json()).then((s) => {
+  $("#stat").innerHTML = `${s.articles} articles · ${s.outlets.length} outlets · ${s.batches} batches<br>as of ${fmt(s.as_of)}<br><a href="${EXP}/address/${s.registry}" target="_blank" rel="noopener">NewsRegistry ↗</a>`;
+});
+["Why did Anthropic's stock fall?", "What happened at the COP31 climate talks?", "Who won the 2027 Super Bowl?", "What is the boiling point of tungsten?"]
+  .forEach((q) => { const c = document.createElement("span"); c.className = "chip"; c.textContent = q; c.onclick = () => { $("#q").value = q; ask(); }; $("#chips").appendChild(c); });
+$("#f").onsubmit = (e) => { e.preventDefault(); ask(); };
+
+function sentences(answer, ids) {
+  // split into sentences; a sentence counts as sourced only if it carries a [Pn] that the bundle cites
+  // sentence ends: after citation markers (+ optional period), or at [.!?] + space + capital ("$111.50" stays whole)
+  const parts = answer.split(/(?<=\[P\d+\][.!?]?)\s+|(?<=[.!?])\s+(?=[A-Z"“'])/);
+  return parts.filter((p) => p.trim()).map((p) => {
+    const refs = [...p.matchAll(/\[(P\d+)\]/g)].map((m) => m[1]).filter((x) => ids.includes(x));
+    const text = p.replace(/\s*\[P\d+\]/g, "").trim();
+    return `<span class="s${refs.length ? "" : " unv"}">${esc(text)}${refs.map((r) => `<button class="pid" data-p="${r}">${r}</button>`).join("")}${refs.length ? "" : '<span class="unvtag">unverified</span>'}</span> `;
+  }).join("");
+}
+
+function render(t, b) {
+  const ids = (b.citations || []).map((c) => c.id), body = $(".body", t);
+  const nf = b.answer === "Not found in registered news.";
+  body.innerHTML = `<p class="asof">As of <b>${fmt(b.as_of)}</b> · block time of the latest registered batch (proven not-after bound)</p>
+    <p class="ans">${nf ? esc(b.answer) : sentences(b.answer || "", ids)}</p>
+    ${b.abstain ? `<p class="abst">Abstained before any model call: ${esc(b.abstain.reason === "post_cutoff" ? "the question is about events after the cutoff" : "no registered paragraph passed the relevance threshold")} (${esc(b.abstain.detail.split(";")[0])}).</p>` : ""}
+    <div class="srcs">${(b.citations || []).map((c) => { const m = c.article.meta; return `<div class="src" id="${t.id}-${c.id}">
+      <span class="lab">${c.id} · registered source text</span><h4>${esc(m.outlet)} — ${esc(m.title)}</h4>
+      <blockquote>${esc(c.text)}</blockquote>
+      <div class="kv"><span>url</span><a href="${esc(m.url)}" target="_blank" rel="noopener">${esc(m.url)}</a>
+      <span>published</span><span class="claim">${fmt(m.published_at)} — claimed by the feed</span>
+      <span>fetched</span><span class="claim">${fmt(m.fetched_at)} — claimed by our crawler (L0)</span>
+      <span>registered</span><span class="proven">${fmt(new Date(c.batch.block_time * 1000).toISOString().replace(".000Z", "Z"))} — block time, proven · <a href="${c.batch.explorer}" target="_blank" rel="noopener">tx ↗</a></span>
+      <span>batch root</span><span>${c.batch.root.slice(0, 18)}…</span></div><ul class="checks" data-c="${c.id}"></ul></div>`; }).join("")}</div>
+    <div class="vbar"><button class="v">Verify in my browser</button>${ids.length ? '<button class="ghost tamper">Try a tampered copy</button>' : ""}<span class="res"></span></div>
+    <ul class="checks scope"></ul>
+    <p class="note">What this proves: each cited paragraph is the exact text of an article whose URL, outlet and times sit in a batch root registered on Arc by a key you trust, and the model saw exactly that text before answering. It does not prove the news is true, and because full articles are not redistributed, nobody can replay retrieval: an article that was left out is not detectable. The set of batches searched is fixed on-chain before the model call.</p>`;
+  body.querySelectorAll(".pid").forEach((x) => (x.onclick = () => document.getElementById(`${t.id}-${x.dataset.p}`).scrollIntoView({ behavior: "smooth", block: "center" })));
+  $(".v", body).onclick = () => verify(body, b);
+  const tb = $(".tamper", body); if (tb) tb.onclick = () => verify(body, NewsVerify.tamper(b, ["text", "url", "time"][Math.floor(Math.random() * 3)]));
+}
+
+async function verify(body, b) {
+  const res = $(".res", body); res.className = "res"; res.textContent = "checking against Arc…";
+  try {
+    const r = await NewsVerify.verify(b, { onCall: (n) => (res.textContent = `checking against Arc… ${n} RPC calls`) });
+    const li = (x) => `<li class="${x.ok === null ? "skip" : x.ok ? "ok" : "bad"}">${esc(x.check)}${x.detail && x.ok !== true ? ` — ${esc(x.detail)}` : ""}</li>`;
+    r.citations.forEach((c) => { const ul = body.querySelector(`ul[data-c="${c.id}"]`); if (ul) ul.innerHTML = c.checks.map(li).join(""); });
+    $(".scope", body).innerHTML = [...r.header, ...r.scope, ...r.model_call].map(li).join("");
+    res.className = "res " + (r.all_pass ? "pass" : "fail");
+    res.textContent = (b._t ? `Tampered (${b._t}): ` : "") + (r.all_pass ? `All checks passed · ${r.rpc_calls} calls straight to Arc, none to us` : "Verification failed");
+  } catch (e) { res.className = "res fail"; res.textContent = e.message; }
+}
+
+let n = 0;
+async function ask() {
+  const q = $("#q").value.trim(); if (!q) return; $("#q").value = ""; $("#go").disabled = true; $("#chips").style.display = "none";
+  const t = document.createElement("div"); t.className = "turn"; t.id = "t" + ++n; t.innerHTML = `<p class="q">${esc(q)}</p><div class="body">Searching registered news…</div>`;
+  $("#thread").prepend(t);
+  try { const r = await fetch("/api/news/ask", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: q }) });
+    const j = await r.json(); if (!r.ok) throw new Error(j.detail || r.status); render(t, j.bundle);
+  } catch (e) { $(".body", t).innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+  $("#go").disabled = false;
+}
+if (new URLSearchParams(location.search).get("demo")) fetch("/api/news/example").then((r) => r.json()).then((b) => {
+  $("#chips").style.display = "none"; const t = document.createElement("div"); t.className = "turn"; t.id = "t0";
+  t.innerHTML = `<p class="q">${esc(b.question)}</p><div class="body"></div>`; $("#thread").prepend(t); render(t, b);
+  if (new URLSearchParams(location.search).get("demo") === "verify") $(".v", t).click();
+});
+</script>
+</body>
+</html>

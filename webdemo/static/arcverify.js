@@ -169,12 +169,13 @@
     const chain = parseInt(await rpc("eth_chainId", []), 16), contract = b.contract;
     const head = [{ check: "chain id is Arc testnet 5042002", ok: chain === CHAIN_ID && CHAIN_ID === parseInt(b.chain_id ?? CHAIN_ID), detail: `RPC says ${chain}` }];
     const code = await rpc("eth_getCode", [contract, "latest"]);
-    head.push({ check: "SourceRegistry has contract code", ok: !["0x", "0x0"].includes(code), detail: contract });
+    head.push({ check: (opts.modelOnly ? "InferenceLog" : "SourceRegistry") + " has contract code", ok: !["0x", "0x0"].includes(code), detail: contract });
     if (!head.every((x) => x.ok)) return { all_pass: false, header: head, citations: [], model_call: [], rpc_calls: calls.length, evidence, calls };
 
     // citations
     const cites = [];
-    for (let i = 0; i < (b.citations || []).length; i++) { tag = "src:" + i; cites.push(await verifyCitation(b.citations[i])); }
+    // opts.modelOnly: news bundles verify their citations in newsverify.js and use only the M checks here
+    if (!opts.modelOnly) for (let i = 0; i < (b.citations || []).length; i++) { tag = "src:" + i; cites.push(await verifyCitation(b.citations[i])); }
     async function verifyCitation(c) {
       const fails = [], notes = [], text = c.text ?? "", claimed = (c.content_hash || "").toLowerCase();
       const h = await shaStr(text);
@@ -301,7 +302,7 @@
       return out;
     }
 
-    const ok = cites.length > 0 && cites.every((r) => r.status === "PASS") && inf.every((x) => x.ok);
+    const ok = (opts.modelOnly || (cites.length > 0 && cites.every((r) => r.status === "PASS"))) && inf.every((x) => x.ok);
     let model = null;
     if (b.inference) {
       let sm; try { sm = servedModel(b64bytes(b.inference.response_body_b64)); } catch (e) { sm = { served: null, provider: null }; }

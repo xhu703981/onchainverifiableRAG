@@ -1,0 +1,179 @@
+{
+ "kind": "news",
+ "question": "Why did Anthropic's stock fall?",
+ "as_of": "2026-11-24T15:32:28Z",
+ "as_of_statement": "As of 2026-11-24T15:32:28Z (block time of the latest registered batch; proven not-after bound)",
+ "chain_id": 5042002,
+ "rpc": "https://rpc.testnet.arc.io",
+ "news": {
+  "registry": "0x124FcEfe59dAdbE5f6517E709b5C6A3988Ab6F64",
+  "scheme": "news-merkle-v1",
+  "trust_level": "L0",
+  "scope": {
+   "roots": [
+    "0xd6c04c88ceaab0b2015182d74301499b84ea99623979c0e710f9c7709ade428a"
+   ],
+   "scope_hash": "0xcb4c45bfe3788a4f7fb8e5438b0e0fe1d7252bfc05050fa036126a9294e1fb3c"
+  },
+  "config_hash": "0x83af75fb63246acd27dfefc4a860529574adee37a77abebc76deabd44edf1083",
+  "config_json": "{\n \"version\": \"news-hybrid-v1\",\n \"corpus\": {\n  \"scheme\": \"news-merkle-v1\",\n  \"unit\": \"paragraph\",\n  \"scope\": \"every paragraph of every article in a batch whose root is NewsRegistry.isTrustedRoot at question time; identical paragraph texts are indexed once (first article in batch order)\",\n  \"scope_hash\": \"sha256(concat(sorted unique batch roots)), bound into the committed request\"\n },\n \"retriever_code\": {\n  \"path\": \"../webdemo/retrieval_v1.py\",\n  \"sha256\": \"0xf7404ef37f007a76303bb38823cc5145eb9ffa921fba274ec6645ae90362c4f6\"\n },\n \"model\": {\n  \"name\": \"minishlab/potion-base-8M\",\n  \"weights\": \"0xf65d0f325faadc1e121c319e2faa41170d3fa07d8c89abd48ca5358d9a223de2\",\n  \"tokenizer\": \"0xbe9ca851be1f7c29143a9f062d17e01b01fcf297411797147f343c3713de5530\"\n },\n \"bm25\": {\n  \"k1\": 0.9,\n  \"b\": 0.4,\n  \"idf\": \"ln(1+(N-df+0.5)/(df+0.5))\",\n  \"tokens\": \"lowercase; [a-z0-9]+; minus stopwords\",\n  \"stopwords\": [\n   \"a\",\n   \"an\",\n   \"and\",\n   \"are\",\n   \"as\",\n   \"at\",\n   \"be\",\n   \"by\",\n   \"did\",\n   \"do\",\n   \"does\",\n   \"for\",\n   \"from\",\n   \"has\",\n   \"he\",\n   \"how\",\n   \"in\",\n   \"is\",\n   \"it\",\n   \"its\",\n   \"of\",\n   \"on\",\n   \"that\",\n   \"the\",\n   \"to\",\n   \"was\",\n   \"were\",\n   \"what\",\n   \"when\",\n   \"where\",\n   \"which\",\n   \"who\",\n   \"why\",\n   \"will\",\n   \"with\"\n  ]\n },\n \"dense\": {\n  \"tokenizer\": \"BERT uncased WordPiece\",\n  \"max_tokens\": 512,\n  \"drop_unk\": true,\n  \"vector\": \"sum of token rows, L2-normalised\",\n  \"similarity\": \"dot\"\n },\n \"fusion\": {\n  \"method\": \"rrf\",\n  \"k\": 60,\n  \"list_depth\": 50,\n  \"pool\": 50,\n  \"order\": \"score quantised to 1e-9 desc, then leaf index\"\n },\n \"relevance\": {\n  \"rule\": \"a candidate is relevant if query-token coverage >= min_coverage AND dense cosine >= min_cosine; coverage = |distinct BM25 query tokens present in paragraph| / |distinct BM25 query tokens|\",\n  \"min_coverage\": 0.4,\n  \"min_cosine\": 0.35\n },\n \"selection\": {\n  \"prompt_k\": 6,\n  \"rule\": \"first prompt_k relevant candidates in rank order; none relevant -> 'Not found in registered news.' without a model call\"\n },\n \"cutoff\": {\n  \"as_of\": \"max block timestamp over the scope batches (on-chain)\",\n  \"rule\": \"explicit dates after as_of (year, month+year, month+day), or 'tomorrow' / 'next week|month|year' -> abstain without a model call\"\n }\n}\n"
+ },
+ "answer": "Shares of Anthropic fell 8% on Tuesday, sending the stock below the artificial intelligence company's $83 IPO price [P1]. The AI lab's stock has been sinking steadily since opening at $111.50 on the Nasdaq on Thursday, after Anthropic raised $81.3 billion in the largest offering of all time [P4]. Investors eagerly awaited Anthropic's debut in hopes that the company would revitalize the broader AI trade, which has been volatile in recent weeks over concerns about the feasibility of a multi-trillion-dollar infrastructure buildout [P4].",
+ "citations": [
+  {
+   "id": "P1",
+   "text": "Shares of Anthropic fell 8% on Tuesday, sending the stock below the artificial intelligence company's $83 IPO price.",
+   "content_hash": "0xb31460cfaff61631a84701423f0d09c2e298eadad585e1948d8338eada898013",
+   "paragraph": {
+    "index": 0,
+    "leaf": "0x302cba3866dd80f3067746bb4746265c56005d93d16443a92115b2b24de1e78c",
+    "proof": [
+     "R:0x2c5527c60f84870e00f74b34789ecaa8bba5fedff69e5d62798b35eaa0c303f3",
+     "R:0x3c2673260d11020e39532ca890fbe9e6c0b3829afa78eef853c8c2263538aa0a",
+     "R:0xe084e2913b8bd75c1239ac25a11fff35dfe8fa31facf5cf2054581a99af6c8a6",
+     "R:0x8cb1348c006e6db7d42183d3a1c5b7c9b9b4268086558899ebbb033a288873b7"
+    ]
+   },
+   "article": {
+    "meta": {
+     "extractor_version": "trafilatura-2.0.0/lock-af7fbee8237b3de9",
+     "fetched_at": "2026-11-24T15:28:03Z",
+     "normalization": "0xa776a1dd1e9ee61010ccd17645c4262a9b0629001a706108ba2b3e2e913c5aa4",
+     "outlet": "CNBC",
+     "published_at": "2026-11-24T15:22:29Z",
+     "raw_html_sha256": "0x4aad720722b6df487de6fa7df4b626282954af6396abb3cee3290b3c0ca1c7b2",
+     "title": "Anthropic stock falls below $83 IPO price, but analysts are still largely positive",
+     "url": "https://www.cnbc.com/2026/11/24/anthropic-stock-ipo-price.html",
+     "version": 1
+    },
+    "article_root": "0x72ea6ad9e2782a9f0c887bec223df1bbd8a6ebbff505fbcfd548ef0cbb9b9586",
+    "index": 61,
+    "leaf": "0x85cf6e8559ade41d03d804f677d68140beec3ca29e84c1635bd2ff767dd36285",
+    "proof": [
+     "L:0x9a863626c1990c0ebb717dcf0cb643776f5d2e8a5886780140fb819a47c92b7c",
+     "R:0xd234af2ff076f2f80f16908c9f9c1060fe741d5c2d05e7a7a8bca11395ffb05c",
+     "L:0x8fbefd1fe64eaab779671694e5ae9ec49907562e84f8d20a98b6a253efe790db",
+     "L:0xd25736d976456542308daa04fe4862b49571cf183a2bac1458417bd7efe460ae",
+     "L:0xf0cbe3da133b43cf65988b7c1e6b7f826a18e4df11db4a8e4de284951353f049",
+     "L:0x8667ed7d15dd13f62defd2f61e76a1ac8749d8333d52328b4123b1959bb47313",
+     "R:0x3baf72d34a82ac867047c1054d7933c2c677b42bdbe259bcc1023e0cfdda2529",
+     "R:0xa0526062dee74f894f921a87716aa81966a794a7055cef7c14fbac84b0f68b63"
+    ]
+   },
+   "batch": {
+    "root": "0xd6c04c88ceaab0b2015182d74301499b84ea99623979c0e710f9c7709ade428a",
+    "manifest_hash": "0xd12873840360d95cfdbccfc013a41a6c9985f1dbde7c8b69dcb47bf3427317b2",
+    "manifest_uri": "https://raw.githubusercontent.com/xhu703981/onchainverifiableRAG/news-manifests/manifests/news-20261124T153225Z-d6c04c88ce.json",
+    "article_count": 220,
+    "tx": "0xd765fb5385558ed761fe4416f67addac8d1640f5e227bb0a0ff68c9497fbec8e",
+    "block": 73889005,
+    "block_time": 1795534348,
+    "explorer": "https://explorer.testnet.arc.io/tx/0xd765fb5385558ed761fe4416f67addac8d1640f5e227bb0a0ff68c9497fbec8e"
+   }
+  },
+  {
+   "id": "P4",
+   "text": "The AI lab's stock has been sinking steadily since opening at $111.50 on the Nasdaq on Thursday, after Anthropic raised $81.3 billion in the largest offering of all time. Investors eagerly awaited Anthropic's debut in hopes that the company would revitalize the broader AI trade, which has been volatile in recent weeks over concerns about the feasibility of a multi-trillion-dollar infrastructure buildout.",
+   "content_hash": "0x866d40bda254512bbe471013865fe8e36df56bd0a7b9282c5c3b26015cec0651",
+   "paragraph": {
+    "index": 1,
+    "leaf": "0x2c5527c60f84870e00f74b34789ecaa8bba5fedff69e5d62798b35eaa0c303f3",
+    "proof": [
+     "L:0x302cba3866dd80f3067746bb4746265c56005d93d16443a92115b2b24de1e78c",
+     "R:0x3c2673260d11020e39532ca890fbe9e6c0b3829afa78eef853c8c2263538aa0a",
+     "R:0xe084e2913b8bd75c1239ac25a11fff35dfe8fa31facf5cf2054581a99af6c8a6",
+     "R:0x8cb1348c006e6db7d42183d3a1c5b7c9b9b4268086558899ebbb033a288873b7"
+    ]
+   },
+   "article": {
+    "meta": {
+     "extractor_version": "trafilatura-2.0.0/lock-af7fbee8237b3de9",
+     "fetched_at": "2026-11-24T15:28:03Z",
+     "normalization": "0xa776a1dd1e9ee61010ccd17645c4262a9b0629001a706108ba2b3e2e913c5aa4",
+     "outlet": "CNBC",
+     "published_at": "2026-11-24T15:22:29Z",
+     "raw_html_sha256": "0x4aad720722b6df487de6fa7df4b626282954af6396abb3cee3290b3c0ca1c7b2",
+     "title": "Anthropic stock falls below $83 IPO price, but analysts are still largely positive",
+     "url": "https://www.cnbc.com/2026/11/24/anthropic-stock-ipo-price.html",
+     "version": 1
+    },
+    "article_root": "0x72ea6ad9e2782a9f0c887bec223df1bbd8a6ebbff505fbcfd548ef0cbb9b9586",
+    "index": 61,
+    "leaf": "0x85cf6e8559ade41d03d804f677d68140beec3ca29e84c1635bd2ff767dd36285",
+    "proof": [
+     "L:0x9a863626c1990c0ebb717dcf0cb643776f5d2e8a5886780140fb819a47c92b7c",
+     "R:0xd234af2ff076f2f80f16908c9f9c1060fe741d5c2d05e7a7a8bca11395ffb05c",
+     "L:0x8fbefd1fe64eaab779671694e5ae9ec49907562e84f8d20a98b6a253efe790db",
+     "L:0xd25736d976456542308daa04fe4862b49571cf183a2bac1458417bd7efe460ae",
+     "L:0xf0cbe3da133b43cf65988b7c1e6b7f826a18e4df11db4a8e4de284951353f049",
+     "L:0x8667ed7d15dd13f62defd2f61e76a1ac8749d8333d52328b4123b1959bb47313",
+     "R:0x3baf72d34a82ac867047c1054d7933c2c677b42bdbe259bcc1023e0cfdda2529",
+     "R:0xa0526062dee74f894f921a87716aa81966a794a7055cef7c14fbac84b0f68b63"
+    ]
+   },
+   "batch": {
+    "root": "0xd6c04c88ceaab0b2015182d74301499b84ea99623979c0e710f9c7709ade428a",
+    "manifest_hash": "0xd12873840360d95cfdbccfc013a41a6c9985f1dbde7c8b69dcb47bf3427317b2",
+    "manifest_uri": "https://raw.githubusercontent.com/xhu703981/onchainverifiableRAG/news-manifests/manifests/news-20261124T153225Z-d6c04c88ce.json",
+    "article_count": 220,
+    "tx": "0xd765fb5385558ed761fe4416f67addac8d1640f5e227bb0a0ff68c9497fbec8e",
+    "block": 73889005,
+    "block_time": 1795534348,
+    "explorer": "https://explorer.testnet.arc.io/tx/0xd765fb5385558ed761fe4416f67addac8d1640f5e227bb0a0ff68c9497fbec8e"
+   }
+  }
+ ],
+ "inference": {
+  "log_contract": "0xc7CfFb4Ae006AccC82813829CCC466B964aBCAE3",
+  "answer_id": "0x00deafcd42585a52c21b812467ce1381f665cc1f1bc15b514e856d30379d8b7a",
+  "question_key": "news:748550b196b2ef9d",
+  "question_id": "0xcba729c8ae9c703ea0abb4a902c246ab12df929bb78289eefbf152cb2296d427",
+  "model": "openai/gpt-4o-mini",
+  "client_request_ts": "2026-11-24T15:36:23.837830Z",
+  "client_response_received_ts": "2026-11-24T15:36:27.934642Z",
+  "serialization": "json.dumps(body, sort_keys=True, separators=(\",\", \":\"), ensure_ascii=False).encode(\"utf-8\")",
+  "request_body": "{\"max_tokens\":300,\"messages\":[{\"content\":\"Request metadata (audit only, do not mention): answer_id=0x00deafcd42585a52c21b812467ce1381f665cc1f1bc15b514e856d30379d8b7a; question_id=0xcba729c8ae9c703ea0abb4a902c246ab12df929bb78289eefbf152cb2296d427; client_ts=2026-11-24T15:36:23.837830Z; news_registry=0x124FcEfe59dAdbE5f6517E709b5C6A3988Ab6F64; scheme=news-merkle-v1; news_scope=0xcb4c45bfe3788a4f7fb8e5438b0e0fe1d7252bfc05050fa036126a9294e1fb3c; retrieval_config=0x83af75fb63246acd27dfefc4a860529574adee37a77abebc76deabd44edf1083; as_of=2026-11-24T15:32:28Z\",\"role\":\"system\"},{\"content\":\"The numbered passages are paragraphs from news articles registered up to 2026-11-24T15:32:28Z. Answer the question using ONLY these passages.\\nWrite 1-4 short sentences. End EVERY sentence with the ids of the passages that support it, placed before the period. Never write a sentence without such a citation.\\nReply with JSON only, for example {\\\"answer\\\": \\\"X happened on Monday [P2]. Officials said Y [P1][P3].\\\", \\\"citations\\\": [\\\"P2\\\", \\\"P1\\\", \\\"P3\\\"]} (citations = every id you used, in first-use order).\\nIf the passages do not answer the question, or it asks about events after 2026-11-24T15:32:28Z, reply exactly {\\\"answer\\\": \\\"Not found in registered news.\\\", \\\"citations\\\": []}.\\n\\n[P1] Shares of Anthropic fell 8% on Tuesday, sending the stock below the artificial intelligence company's $83 IPO price.\\n\\n[P2] What does Anthropic\u2019s performance tell us?\\n\\n[P3] Analysts at Oppenheimer initiated coverage of Anthropic with an outperform rating on Tuesday, and they set a $150 price target for the stock.\\n\\n[P4] The AI lab's stock has been sinking steadily since opening at $111.50 on the Nasdaq on Thursday, after Anthropic raised $81.3 billion in the largest offering of all time. Investors eagerly awaited Anthropic's debut in hopes that the company would revitalize the broader AI trade, which has been volatile in recent weeks over concerns about the feasibility of a multi-trillion-dollar infrastructure buildout.\\n\\n[P5] Is Anthropic\u2019s huge valuation justified?\\n\\n[P6] But he expressed faith in Anthropic\u2019s ability to get the balance right:\\n\\nQuestion: Why did Anthropic's stock fall?\",\"role\":\"user\"}],\"model\":\"openai/gpt-4o-mini\",\"temperature\":0}",
+  "request_hash": "0xb693f9bbe6e7fad38af107c3667618312795093bc492f130fda28e4a8387d2a5",
+  "passages": [
+   {
+    "id": "P1",
+    "content_hash": "0xb31460cfaff61631a84701423f0d09c2e298eadad585e1948d8338eada898013"
+   },
+   {
+    "id": "P2",
+    "content_hash": "0x038f62035c4c49fe27e4e35c4e65589a1744d4a7ece497c50a7a14f12f056d52"
+   },
+   {
+    "id": "P3",
+    "content_hash": "0xa49ee9c516488e9130b93a1a0b9c64831407ccf75a1b941e904a4f8007db9207"
+   },
+   {
+    "id": "P4",
+    "content_hash": "0x866d40bda254512bbe471013865fe8e36df56bd0a7b9282c5c3b26015cec0651"
+   },
+   {
+    "id": "P5",
+    "content_hash": "0x17ab959918a34019cfc36f38b942e22565ef96bdbf0053170050c5773c94e020"
+   },
+   {
+    "id": "P6",
+    "content_hash": "0xd2fa51585af20ebe6fe2a06483ef70f197a3bf1b3b89a5af25a1ba09df997218"
+   }
+  ],
+  "passages_root": "0xc8d38380719366f1d576f3888ce9c5e79d3d8c4017323919bc3415cdfb3496be",
+  "response_body_b64": "CiAgICAgICAgIAp7ImlkIjoiZ2VuLTE3OTU1MzQ1ODUtVnU3Z3M3bkFndnhvMEFDMmRUV04iLCJvYmplY3QiOiJjaGF0LmNvbXBsZXRpb24iLCJjcmVhdGVkIjoxNzk1NTM0NTg1LCJtb2RlbCI6Im9wZW5haS9ncHQtNG8tbWluaSIsInByb3ZpZGVyIjoiT3BlbkFJIiwic3lzdGVtX2ZpbmdlcnByaW50IjoiZnBfMDIyYTQ0MmJkYSIsInNlcnZpY2VfdGllciI6ImRlZmF1bHQiLCJjaG9pY2VzIjpbeyJpbmRleCI6MCwibG9ncHJvYnMiOm51bGwsImZpbmlzaF9yZWFzb24iOiJzdG9wIiwibmF0aXZlX2ZpbmlzaF9yZWFzb24iOiJzdG9wIiwibWVzc2FnZSI6eyJyb2xlIjoiYXNzaXN0YW50IiwiY29udGVudCI6IntcImFuc3dlclwiOiBcIlNoYXJlcyBvZiBBbnRocm9waWMgZmVsbCA4JSBvbiBUdWVzZGF5LCBzZW5kaW5nIHRoZSBzdG9jayBiZWxvdyB0aGUgYXJ0aWZpY2lhbCBpbnRlbGxpZ2VuY2UgY29tcGFueSdzICQ4MyBJUE8gcHJpY2UgW1AxXS4gVGhlIEFJIGxhYidzIHN0b2NrIGhhcyBiZWVuIHNpbmtpbmcgc3RlYWRpbHkgc2luY2Ugb3BlbmluZyBhdCAkMTExLjUwIG9uIHRoZSBOYXNkYXEgb24gVGh1cnNkYXksIGFmdGVyIEFudGhyb3BpYyByYWlzZWQgJDgxLjMgYmlsbGlvbiBpbiB0aGUgbGFyZ2VzdCBvZmZlcmluZyBvZiBhbGwgdGltZSBbUDRdLiBJbnZlc3RvcnMgZWFnZXJseSBhd2FpdGVkIEFudGhyb3BpYydzIGRlYnV0IGluIGhvcGVzIHRoYXQgdGhlIGNvbXBhbnkgd291bGQgcmV2aXRhbGl6ZSB0aGUgYnJvYWRlciBBSSB0cmFkZSwgd2hpY2ggaGFzIGJlZW4gdm9sYXRpbGUgaW4gcmVjZW50IHdlZWtzIG92ZXIgY29uY2VybnMgYWJvdXQgdGhlIGZlYXNpYmlsaXR5IG9mIGEgbXVsdGktdHJpbGxpb24tZG9sbGFyIGluZnJhc3RydWN0dXJlIGJ1aWxkb3V0IFtQNF0uXCIsIFwiY2l0YXRpb25zXCI6IFtcIlAxXCIsIFwiUDRcIl19IiwicmVmdXNhbCI6bnVsbCwicmVhc29uaW5nIjpudWxsfX1dLCJ1c2FnZSI6eyJwcm9tcHRfdG9rZW5zIjo2MzIsImNvbXBsZXRpb25fdG9rZW5zIjoxMzIsInRvdGFsX3Rva2VucyI6NzY0LCJjb3N0IjowLjAwMDE3NCwiaXNfYnlvayI6ZmFsc2UsInByb21wdF90b2tlbnNfZGV0YWlscyI6eyJjYWNoZWRfdG9rZW5zIjowLCJjYWNoZV93cml0ZV90b2tlbnMiOjAsImF1ZGlvX3Rva2VucyI6MCwidmlkZW9fdG9rZW5zIjowfSwiY29zdF9kZXRhaWxzIjp7InVwc3RyZWFtX2luZmVyZW5jZV9jb3N0IjowLjAwMDE3NCwidXBzdHJlYW1faW5mZXJlbmNlX3Byb21wdF9jb3N0IjowLjAwMDA5NDgsInVwc3RyZWFtX2luZmVyZW5jZV9jb21wbGV0aW9uc19jb3N0IjowLjAwMDA3OTJ9LCJjb21wbGV0aW9uX3Rva2Vuc19kZXRhaWxzIjp7InJlYXNvbmluZ190b2tlbnMiOjAsImltYWdlX3Rva2VucyI6MCwiYXVkaW9fdG9rZW5zIjowfX19",
+  "response_hash": "0xabc93b05f2c9e7d14edc97614d2901c8bcbae363d8eb89fcf0f5284542b0d593",
+  "provider_generation_id": "gen-1795534585-Vu7gs7nAgvxo0AC2dTWN",
+  "provider_model": "openai/gpt-4o-mini",
+  "provider": "OpenAI",
+  "commit_tx": "0xe7f1573296556eff2fcce93c1db6e63ce0e416abc80873219cdfb736617dbd80",
+  "commit_block": 73889470,
+  "finalize_tx": "0x5b3e8f60edc27cb0e4ffebe592e054fd86eebf1e4454fc8f6f08ada617138b75",
+  "finalize_block": 73889480,
+  "explorer": {
+   "commit": "https://explorer.testnet.arc.io/tx/0xe7f1573296556eff2fcce93c1db6e63ce0e416abc80873219cdfb736617dbd80",
+   "finalize": "https://explorer.testnet.arc.io/tx/0x5b3e8f60edc27cb0e4ffebe592e054fd86eebf1e4454fc8f6f08ada617138b75"
+  }
+ },
+ "how_to_verify": "python webdemo/verify_citations.py <this file>"
+}

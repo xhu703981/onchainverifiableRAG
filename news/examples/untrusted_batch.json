@@ -1,0 +1,39 @@
+{
+ "note": "registered by an address that is NOT a trusted publisher; isTrustedRoot(root) == false",
+ "registrant": "0xe78B05339E36afD728B7E3c7514713Bb40d14bED",
+ "root": "0xf182d2753b0ce0c3c068e0544c16a8b0b6682fc518664c4428cb5f5b18802870",
+ "manifest_hash": "0xa9114e35c8e5569fe39d7e16cef3c11f3d0e78d4ce2f41a0ceaf6fc0067a1db8",
+ "article_count": 3,
+ "tx": "0xe5c99fb40d03eaa345d3b1937e5144eb1d39d11fa9d123bd7222219cc1ad50f5",
+ "block": 73889549,
+ "block_time": 1795534624,
+ "explorer": "https://explorer.testnet.arc.io/tx/0xe5c99fb40d03eaa345d3b1937e5144eb1d39d11fa9d123bd7222219cc1ad50f5",
+ "articles": [
+  {
+   "article_id": 71,
+   "article_root": "0x72ea6ad9e2782a9f0c887bec223df1bbd8a6ebbff505fbcfd548ef0cbb9b9586",
+   "index": 0,
+   "proof": [
+    "R:0x57dc5b5279c760d2ed4b530a03f5d7bb0b30aca14cb2d3dca33394ef80388470",
+    "R:0x72fc1fc921d5689994f9f320086650a02154b2da3eae2b92d6627f044ea1e0c8"
+   ]
+  },
+  {
+   "article_id": 1,
+   "article_root": "0x9dfab9e5adcb52407f3057b1e02cf48788b188925f07053ccf68040e6fac50e8",
+   "index": 1,
+   "proof": [
+    "L:0x85cf6e8559ade41d03d804f677d68140beec3ca29e84c1635bd2ff767dd36285",
+    "R:0x72fc1fc921d5689994f9f320086650a02154b2da3eae2b92d6627f044ea1e0c8"
+   ]
+  },
+  {
+   "article_id": 2,
+   "article_root": "0xe53fc4eadfd11eb7cfeec798bcea9c3a7ae1c47df69624f04915eaf66c344be3",
+   "index": 2,
+   "proof": [
+    "L:0x9a176cb0e76e800156814604ea3fe763c813e83c57daccf445597402a1418c48"
+   ]
+  }
+ ]
+}

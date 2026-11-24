@@ -1,0 +1,27 @@
+{
+ "kind": "news",
+ "question": "What is the boiling point of tungsten?",
+ "as_of": "2026-11-24T15:32:28Z",
+ "as_of_statement": "As of 2026-11-24T15:32:28Z (block time of the latest registered batch; proven not-after bound)",
+ "chain_id": 5042002,
+ "rpc": "https://rpc.testnet.arc.io",
+ "news": {
+  "registry": "0x124FcEfe59dAdbE5f6517E709b5C6A3988Ab6F64",
+  "scheme": "news-merkle-v1",
+  "trust_level": "L0",
+  "scope": {
+   "roots": [
+    "0xd6c04c88ceaab0b2015182d74301499b84ea99623979c0e710f9c7709ade428a"
+   ],
+   "scope_hash": "0xcb4c45bfe3788a4f7fb8e5438b0e0fe1d7252bfc05050fa036126a9294e1fb3c"
+  },
+  "config_hash": "0x83af75fb63246acd27dfefc4a860529574adee37a77abebc76deabd44edf1083",
+  "config_json": "{\n \"version\": \"news-hybrid-v1\",\n \"corpus\": {\n  \"scheme\": \"news-merkle-v1\",\n  \"unit\": \"paragraph\",\n  \"scope\": \"every paragraph of every article in a batch whose root is NewsRegistry.isTrustedRoot at question time; identical paragraph texts are indexed once (first article in batch order)\",\n  \"scope_hash\": \"sha256(concat(sorted unique batch roots)), bound into the committed request\"\n },\n \"retriever_code\": {\n  \"path\": \"../webdemo/retrieval_v1.py\",\n  \"sha256\": \"0xf7404ef37f007a76303bb38823cc5145eb9ffa921fba274ec6645ae90362c4f6\"\n },\n \"model\": {\n  \"name\": \"minishlab/potion-base-8M\",\n  \"weights\": \"0xf65d0f325faadc1e121c319e2faa41170d3fa07d8c89abd48ca5358d9a223de2\",\n  \"tokenizer\": \"0xbe9ca851be1f7c29143a9f062d17e01b01fcf297411797147f343c3713de5530\"\n },\n \"bm25\": {\n  \"k1\": 0.9,\n  \"b\": 0.4,\n  \"idf\": \"ln(1+(N-df+0.5)/(df+0.5))\",\n  \"tokens\": \"lowercase; [a-z0-9]+; minus stopwords\",\n  \"stopwords\": [\n   \"a\",\n   \"an\",\n   \"and\",\n   \"are\",\n   \"as\",\n   \"at\",\n   \"be\",\n   \"by\",\n   \"did\",\n   \"do\",\n   \"does\",\n   \"for\",\n   \"from\",\n   \"has\",\n   \"he\",\n   \"how\",\n   \"in\",\n   \"is\",\n   \"it\",\n   \"its\",\n   \"of\",\n   \"on\",\n   \"that\",\n   \"the\",\n   \"to\",\n   \"was\",\n   \"were\",\n   \"what\",\n   \"when\",\n   \"where\",\n   \"which\",\n   \"who\",\n   \"why\",\n   \"will\",\n   \"with\"\n  ]\n },\n \"dense\": {\n  \"tokenizer\": \"BERT uncased WordPiece\",\n  \"max_tokens\": 512,\n  \"drop_unk\": true,\n  \"vector\": \"sum of token rows, L2-normalised\",\n  \"similarity\": \"dot\"\n },\n \"fusion\": {\n  \"method\": \"rrf\",\n  \"k\": 60,\n  \"list_depth\": 50,\n  \"pool\": 50,\n  \"order\": \"score quantised to 1e-9 desc, then leaf index\"\n },\n \"relevance\": {\n  \"rule\": \"a candidate is relevant if query-token coverage >= min_coverage AND dense cosine >= min_cosine; coverage = |distinct BM25 query tokens present in paragraph| / |distinct BM25 query tokens|\",\n  \"min_coverage\": 0.4,\n  \"min_cosine\": 0.35\n },\n \"selection\": {\n  \"prompt_k\": 6,\n  \"rule\": \"first prompt_k relevant candidates in rank order; none relevant -> 'Not found in registered news.' without a model call\"\n },\n \"cutoff\": {\n  \"as_of\": \"max block timestamp over the scope batches (on-chain)\",\n  \"rule\": \"explicit dates after as_of (year, month+year, month+day), or 'tomorrow' / 'next week|month|year' -> abstain without a model call\"\n }\n}\n"
+ },
+ "answer": "Not found in registered news.",
+ "citations": [],
+ "abstain": {
+  "reason": "no_relevant_paragraph",
+  "detail": "best candidate coverage 0.33, cosine 0.19; needs coverage >= 0.4 and cosine >= 0.35"
+ }
+}

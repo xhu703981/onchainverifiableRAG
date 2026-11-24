@@ -38,8 +38,10 @@ If the bundle has a "retrieval" section (corpus committed on CorpusRegistry), it
      log txs for this answerId
 It does NOT verify the model's reasoning, and cannot prove the provider (not us) produced the response.
 
+News bundles ("kind": "news", NewsRegistry batches) are dispatched to verify_news.py (N/S checks + the same M checks).
+
 usage:  python verify_citations.py bundle.json [--rpc URL] [--trust 0xPUBLISHER ...] [--json]
-                                    [--artifacts DIR] [--no-replay]
+                                    [--artifacts DIR] [--no-replay] [--outlets NAME ...] [--no-manifest]
 exit code: 0 if every citation PASSES, 1 otherwise.
 """
 from __future__ import annotations
@@ -98,6 +100,10 @@ class RPC:
                 if e.code != 429 or attempt == 6:
                     raise
                 out = {"error": {"code": -32005, "message": "rate limit exceeded"}}
+            except (urllib.error.URLError, TimeoutError, ConnectionError) as e:  # transient network error: retry
+                if attempt == 6:
+                    raise
+                out = {"error": {"code": -32005, "message": str(e)}}
             if not (isinstance(out.get("error"), dict) and out["error"].get("code") == -32005) or attempt == 6:
                 break
             time.sleep(0.4 * 2 ** attempt)
@@ -565,8 +571,13 @@ def main(argv=None) -> int:
     ap.add_argument("--json", action="store_true", help="print machine-readable results")
     ap.add_argument("--artifacts", help="local dir holding the committed corpus/model files (still sha256-checked); default: fetch from the on-chain URI")
     ap.add_argument("--no-replay", action="store_true", help="skip the retrieval replay (C5)")
+    ap.add_argument("--outlets", nargs="*", help="news bundles: only accept citations from these outlets (your own source choice)")
+    ap.add_argument("--no-manifest", action="store_true", help="news bundles: skip fetching the published manifest (N6)")
     a = ap.parse_args(argv)
     b = json.load(open(a.bundle, encoding="utf-8"))
+    if b.get("kind") == "news":  # news registry bundle: Merkle scheme news-merkle-v1 (see verify_news.py)
+        import verify_news
+        return verify_news.run(b, a.rpc, a.trust, a.outlets, not a.no_manifest, a.json)
     rpc = RPC(a.rpc)
     chain = int(rpc("eth_chainId", []), 16)
     contract = b["contract"]
