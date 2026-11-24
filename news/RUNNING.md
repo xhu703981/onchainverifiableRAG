@@ -1,5 +1,7 @@
 # Run the news pipeline
 
+On a Windows copy that flattens `webdemo` into the project root, set `NEWS_DATA` to a folder next to `app.py` (for example `news-data`). The server also reads a `.env` in that root. `start.ps1` / `stop.ps1` start and stop both `http://127.0.0.1:8765` (existing demo) and `http://127.0.0.1:8766` (news).
+
 Run these commands from the `news` folder. Set `NEWS_DATA` to the data folder first. The default is `/workspace/news-data`.
 
 ## Install

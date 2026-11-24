@@ -19,9 +19,15 @@ REPO = Path(__file__).resolve().parents[2]
 DEPLOY_FILE = REPO / "news" / "deployment.json"
 
 
+def webdemo_dir() -> Path:
+    """webdemo folder, or the repo root when those files are flattened there (Windows demo copy)."""
+    d = REPO / "webdemo"
+    return d if (d / "retrieval_v1.py").is_file() else REPO
+
+
 def load_env() -> dict:
     env = {}
-    for f in (REPO / ".env.arc", REPO / "webdemo" / ".env"):
+    for f in (REPO / ".env.arc", REPO / "webdemo" / ".env", REPO / ".env"):
         if f.exists():
             for line in f.read_text().splitlines():
                 line = line.strip()

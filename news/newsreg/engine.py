@@ -20,11 +20,11 @@ import numpy as np
 from eth_abi import encode
 
 from . import scheme as S
-from .chain import EXPLORER, RPC, Signer, call, deployment, is_trusted_roots, load_env, selector
+from .chain import EXPLORER, RPC, Signer, call, deployment, is_trusted_roots, load_env, selector, webdemo_dir
 from .db import DATA, connect
 
 REPO = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(REPO / "webdemo"))
+sys.path.insert(0, str(webdemo_dir()))
 import retrieval_v1  # noqa: E402  (the committed reference retriever, reused unchanged)
 
 CONFIG_PATH = REPO / "news" / "retrieval_news_v1.json"
@@ -128,7 +128,7 @@ class NewsEngine:
         self.config_raw = CONFIG_PATH.read_bytes()
         self.config_hash = S.hx(S.sha(self.config_raw))
         self.cfg = json.loads(self.config_raw)
-        md = REPO / "webdemo" / "data" / "potion-base-8M"
+        md = webdemo_dir() / "data" / "potion-base-8M"
         self.vocab = retrieval_v1.load_vocab(md / "tokenizer.json")
         self.W = retrieval_v1.load_weights(md / "model.safetensors")
         self.cache_path = DATA / "emb_cache.pkl"

@@ -13,11 +13,11 @@ from pydantic import BaseModel
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from newsreg.chain import Signer  # noqa: E402
+from newsreg.chain import Signer, webdemo_dir  # noqa: E402
 from newsreg.db import connect  # noqa: E402
 from newsreg.engine import NewsEngine, iso  # noqa: E402
 
-STATIC = HERE.parent / "webdemo" / "static"
+STATIC = webdemo_dir() / "static"
 
 
 class UTF8JSON(JSONResponse):

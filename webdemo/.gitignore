@@ -4,3 +4,7 @@ __pycache__/
 server.log
 server.err.log
 server.pid
+news-server.log
+news-server.err.log
+news-server.pid
+news-data/
