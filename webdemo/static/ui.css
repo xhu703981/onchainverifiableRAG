@@ -42,7 +42,7 @@ h1{font:700 21px/1.15 var(--sans);letter-spacing:-.01em;margin:0;color:var(--ink
 .loading i{width:14px;height:8px;border:2px solid var(--muted);border-radius:4px;animation:blink 1.2s steps(1) infinite}
 .loading i:nth-child(2){animation-delay:.2s}.loading i:nth-child(3){animation-delay:.4s}
 .bar{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
-.cite{font:500 13px var(--mono);color:var(--ink);cursor:pointer;background:var(--well);border-radius:4px;padding:2px 7px}
+.cite{font:600 13px var(--sans);color:var(--ink);cursor:pointer;background:var(--well);border-radius:4px;padding:2px 7px}
 .cite:hover{background:var(--cobalt-wash)}
 .cite.on{background:var(--cobalt);color:#fff}
 .sp{flex:1}
@@ -172,6 +172,7 @@ h1{font:700 21px/1.15 var(--sans);letter-spacing:-.01em;margin:0;color:var(--ink
   .top{position:static;flex-direction:row;flex-wrap:wrap;align-items:baseline;gap:6px 16px}
   .top p{display:none}
   .ask{padding:12px 14px 16px}
+  .bar{gap:12px}
   .ask form{padding:0}
   .flow{flex-direction:column;align-items:center}
   .col{flex-direction:row;gap:12px}

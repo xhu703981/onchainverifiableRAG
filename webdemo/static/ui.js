@@ -4,6 +4,9 @@
   "use strict";
   const A = () => G.ArcVerify;
   const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  // display-only: passage ids P1, P3… are shown as "Source 1", "Source 3". Bundles, prompts and hashes keep the P ids.
+  const disp = (x) => String(x ?? "").replace(/\bP(\d+)\b/g, "Source $1");
+  const dispAnswer = (x) => String(x ?? "").replace(/\[P(\d+)\]/g, "[Source $1]");
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const bare = (m) => String(m || "?").split("/").pop();
   // custom glyphs: verified = filled seal with a square-capped tick; failed = hollow ring with a cross (shape, not only colour)
@@ -29,8 +32,8 @@
 
   function render(t, b, opt = {}) {
     const idk = /^i don.?t know/i.test(b.answer || ""), body = t.querySelector(".body");
-    body.innerHTML = `<p class="a ${idk ? "idk" : ""}">${esc(b.answer)}</p>
-      <div class="bar">${(b.citations || []).map((c, i) => `<span class="cite" data-i="${i}">${esc(c.id)}</span>`).join("")}
+    body.innerHTML = `<p class="a ${idk ? "idk" : ""}">${esc(dispAnswer(b.answer))}</p>
+      <div class="bar">${(b.citations || []).map((c, i) => `<span class="cite" data-i="${i}">${esc(disp(c.id))}</span>`).join("")}
         <span class="sp"></span>
         ${b.inference ? `<span class="menu"><span data-m="char">passage</span><span data-m="answer">answer</span><span data-m="prompt">prompt</span><span data-m="model">model</span>${b.retrieval ? `<span data-m="hide">hide a document</span>` : ""}</span>
         <button class="icon" data-a="tamper" title="Tamper with a copy, then verify it">tamper</button>` : ""}
@@ -78,7 +81,7 @@
     const srcs = (b.citations || []).map((c, i) => { const r = v && v.citations[i], m3 = tagged("src:" + i);
       const ok = r ? r.status === "PASS" && allOk(m3) : true;
       const checks = r ? (r.status === "PASS" ? (r.notes || []).map((n) => ({ check: n, ok: true })) : r.reasons.map((x) => ({ check: x, ok: false }))).concat(m3) : [];
-      return { k: "s" + i, lbl: c.id, sub: "trusted source", tags: ["src:" + i], checks, ok, src: true,
+      return { k: "s" + i, lbl: disp(c.id), sub: "trusted source", tags: ["src:" + i], checks, ok, src: true,
         why: `${c.id}: ` + (r && r.status !== "PASS" ? srcReason(r.reasons) : "text was not in the committed prompt") }; });
     cols.push(srcs.length ? srcs : [{ k: "s", lbl: "Sources", sub: "none cited", tags: [], checks: [], ok: true }]);
     if (inf) {
@@ -107,13 +110,13 @@
     const ev = v.evidence || {}, items = [].concat(...n.tags.map((t) => ev[t] || []));
     if (n.rec) items.unshift(...(ev.record || []).filter((x) => x.kind === "rpc" && /213681cd/.test(JSON.stringify(x.req.params))));
     let h = "";
-    if (n.checks.length) h += `<h4>Checks</h4>` + n.checks.map((c) => `<div class="ck ${c.ok === null ? "skip" : c.ok ? "ok" : "bad"}"><i></i><span>${esc(strip(c.check))}${c.detail && (!c.ok || /^M6|^C[1345]/.test(c.check)) ? `<span class="d">${esc(c.detail)}</span>` : ""}</span></div>`).join("");
+    if (n.checks.length) h += `<h4>Checks</h4>` + n.checks.map((c) => `<div class="ck ${c.ok === null ? "skip" : c.ok ? "ok" : "bad"}"><i></i><span>${esc(disp(strip(c.check)))}${c.detail && (!c.ok || /^M6|^C[1345]/.test(c.check)) ? `<span class="d">${esc(disp(c.detail))}</span>` : ""}</span></div>`).join("");
     if (n.k === "c") h += corpusHTML(items, n);
     const cmps = items.filter((x) => x.kind === "cmp" || x.kind === "fact");
     if (cmps.length) h += `<h4>Recomputed in your browser <small>against the chain</small></h4>` + cmps.map((x) => x.kind === "fact"
-      ? `<div class="ev"><div class="hd">${esc(x.label)}<span class="verdict ${x.ok ? "ok" : "bad"}">${x.ok ? "confirmed" : "not confirmed"}</span></div>
+      ? `<div class="ev"><div class="hd">${esc(disp(x.label))}<span class="verdict ${x.ok ? "ok" : "bad"}">${x.ok ? "confirmed" : "not confirmed"}</span></div>
          <div class="kv"><span class="k">value</span><span class="v">${hexSpans(x.value)}</span>${x.note ? `<span class="k"></span><span class="v note">${esc(x.note)}</span>` : ""}</div></div>`
-      : `<div class="ev"><div class="hd">${esc(x.label)}<span class="verdict ${x.ok ? "ok" : "bad"}">${x.ok ? "≡ identical" : "≠ differs"}</span></div>
+      : `<div class="ev"><div class="hd">${esc(disp(x.label))}<span class="verdict ${x.ok ? "ok" : "bad"}">${x.ok ? "≡ identical" : "≠ differs"}</span></div>
          <div class="kv"><span class="k">local</span><span class="v">${hexSpans(x.local, x.chain)}</span>
          <span class="k">${/vs bundle/.test(x.label) ? "bundle" : "on-chain"}</span><span class="v">${hexSpans(x.chain, x.local)}</span>
          ${x.cmd ? `<span class="k">shell</span><span class="v">${cmdRow(x.cmd)}</span>` : ""}</div></div>`).join("");
@@ -134,7 +137,7 @@
   function corpusHTML(items, n) {
     let h = "";
     for (const pr of items.filter((x) => x.kind === "proof")) {
-      h += `<h4>Inclusion proof <small>Merkle path, recomputed in your browser</small></h4><div class="ev"><div class="hd">${esc(pr.label[0].toUpperCase() + pr.label.slice(1))}, leaf ${esc(pr.index)} of ${Number(pr.leaves).toLocaleString("en-US")}<span class="verdict ${pr.ok ? "ok" : "bad"}">${pr.ok ? "reaches the on-chain root" : "does not reach the root"}</span></div>
+      h += `<h4>Inclusion proof <small>Merkle path, recomputed in your browser</small></h4><div class="ev"><div class="hd">${esc(disp(pr.label[0].toUpperCase() + pr.label.slice(1)))}, leaf ${esc(pr.index)} of ${Number(pr.leaves).toLocaleString("en-US")}<span class="verdict ${pr.ok ? "ok" : "bad"}">${pr.ok ? "reaches the on-chain root" : "does not reach the root"}</span></div>
         <div class="kv path"><span class="k">passage</span><span class="v">${hexSpans(pr.id)}</span>` +
         (pr.steps || []).map((s, i) => s.op === "leaf" ? `<span class="k">leaf</span><span class="v">${hexSpans(s.value)}</span>`
           : `<span class="k">${s.op === "up" ? "carry ↑" : (s.op === "L" ? "⊕ left" : "⊕ right")}</span><span class="v">${s.op === "up" ? `<span class="note">odd node, promoted</span>` : hexSpans(s.sib)}</span>`).join("") +
@@ -191,7 +194,7 @@
       vf.querySelector(`[data-c="${i}"]`).classList.add(cols[i].every((n) => n.ok) ? "ok" : "bad");
     }
     const why = vf.querySelector(".why");
-    if (bad) { why.className = "why"; why.innerHTML = SEAL(false) + `<span>${esc(bad.why)}</span>` + (tampered ? `<span class="tag">tampered ${esc(b._t || "copy")}</span>` : ""); }
+    if (bad) { why.className = "why"; why.innerHTML = SEAL(false) + `<span>${esc(disp(bad.why))}</span>` + (tampered ? `<span class="tag">tampered ${esc(disp(b._t || "copy"))}</span>` : ""); }
     else { why.className = "why okk"; why.innerHTML = SEAL(true) + `<span>${v.all_pass ? "Verified on Arc" : "Model call verified, but no sources were cited"}</span>`; }
     vf.querySelector(".hint").textContent = "Click a node to see the on-chain evidence.";
     G.__lastVerify = v;
