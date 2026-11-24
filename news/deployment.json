@@ -1,0 +1,10 @@
+{
+ "chain_id": 5042002,
+ "news_registry": "0x124FcEfe59dAdbE5f6517E709b5C6A3988Ab6F64",
+ "owner": "0x5A4fcaAEaAE1e5edD3F631fF99D84f020D691B33",
+ "crawler": "0x5A4fcaAEaAE1e5edD3F631fF99D84f020D691B33",
+ "deploy_tx": "0xabad7f189772fe6351d1fccb7c9780f65339db47a3f220947951e33dfd14b161",
+ "deploy_block": 73888185,
+ "trust_tx": "0xeee7549594025ff53587599590ff253e9550106714da490dc6727e158e41d220",
+ "explorer": "https://explorer.testnet.arc.io/address/0x124FcEfe59dAdbE5f6517E709b5C6A3988Ab6F64"
+}
