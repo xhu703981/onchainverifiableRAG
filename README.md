@@ -44,10 +44,15 @@ flowchart LR
 
 **Limitation.** The log proves which exact prompt and response existed and when, and that the cited sources are genuine. It does not prove that the provider actually ran the model on that prompt, and it does not verify the model's reasoning. The served model and provider are self-reported by the provider, not cryptographically proven. The replay proves the ranking follows from the committed corpus and retriever. It doesn't prove the corpus itself is complete or unbiased, and the trust filter is re-checked against the current allowlist.
 
-## Verifiable news, phase 1
+## Verifiable news answers
 
-The [`news/`](news/README.md) folder applies the same idea to a live corpus. A crawler reads 20 English news feeds every hour and splits articles into paragraphs. Every 8 hours it registers a Merkle root of the new articles in NewsRegistry on Arc testnet at [`0x124FcEfe59dAdbE5f6517E709b5C6A3988Ab6F64`](https://explorer.testnet.arc.io/address/0x124FcEfe59dAdbE5f6517E709b5C6A3988Ab6F64). Each batch's manifest, with metadata and roots but no text, is on the [`news-manifests`](https://github.com/xhu703981/onchainverifiableRAG/tree/news-manifests/manifests) branch.
+The [`news` folder](news/README.md) applies the same checks to live news. A crawler reads 20 English news feeds every hour. Every 8 hours, it registers a Merkle root of the new articles in `NewsRegistry` on Arc testnet at [`0x124FcEfe59dAdbE5f6517E709b5C6A3988Ab6F64`](https://explorer.testnet.arc.io/address/0x124FcEfe59dAdbE5f6517E709b5C6A3988Ab6F64).
 
-Answers use only paragraphs from trusted batches, and every sentence cites one. Anyone can check that a cited paragraph is the exact text of the article, URL and outlet it names, that a key they trust registered it, and that the model saw it. This proves where the text came from, not that it is true. Full text cannot be redistributed, so an article left out of retrieval cannot be detected.
+A passing news bundle proves two things:
+
+1. Every cited paragraph comes from an article in a batch that a trusted key registered. The text, URL, and claimed times are inside the batch root.
+2. The cited paragraphs were in the prompt that the server committed on-chain before the model call. The response hash was finalized in a later block.
+
+A passing bundle does not prove that the news is true. It does not prove that no relevant article was left out, because full article text can't be published. You also trust our crawler key for what each page said when we fetched it.
 
 ![news answer verified in the browser](webdemo/screens/news_verify.png)

@@ -49,6 +49,8 @@
 <script>
 const $ = (s, r = document) => r.querySelector(s), esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const EXP = "https://explorer.testnet.arc.io";
+// display-only: passage ids P1, P4 are shown as "Source 1", "Source 4". Bundles, prompts and hashes keep the P ids.
+const disp = (x) => String(x ?? "").replace(/\bP(\d+)\b/g, "Source $1");
 const fmt = (t) => t ? t.replace("T", " ").replace("Z", " UTC") : "not given";
 fetch("/api/news/status").then((r) => r.json()).then((s) => {
   $("#stat").innerHTML = `${s.articles} articles · ${s.outlets.length} outlets · ${s.batches} batches<br>as of ${fmt(s.as_of)}<br><a href="${EXP}/address/${s.registry}" target="_blank" rel="noopener">NewsRegistry ↗</a>`;
@@ -64,7 +66,7 @@ function sentences(answer, ids) {
   return parts.filter((p) => p.trim()).map((p) => {
     const refs = [...p.matchAll(/\[(P\d+)\]/g)].map((m) => m[1]).filter((x) => ids.includes(x));
     const text = p.replace(/\s*\[P\d+\]/g, "").trim();
-    return `<span class="s${refs.length ? "" : " unv"}">${esc(text)}${refs.map((r) => `<button class="pid" data-p="${r}">${r}</button>`).join("")}${refs.length ? "" : '<span class="unvtag">unverified</span>'}</span> `;
+    return `<span class="s${refs.length ? "" : " unv"}">${esc(text)}${refs.map((r) => `<button class="pid" data-p="${r}">${disp(r)}</button>`).join("")}${refs.length ? "" : '<span class="unvtag">unverified</span>'}</span> `;
   }).join("");
 }
 
@@ -75,7 +77,7 @@ function render(t, b) {
     <p class="ans">${nf ? esc(b.answer) : sentences(b.answer || "", ids)}</p>
     ${b.abstain ? `<p class="abst">No model call was made. ${esc(b.abstain.reason === "post_cutoff" ? "The question asks about a date after the cutoff" : "No registered paragraph passed the relevance threshold")}: ${esc(b.abstain.detail.split(";")[0])}.</p>` : ""}
     <div class="srcs">${(b.citations || []).map((c) => { const m = c.article.meta; return `<div class="src" id="${t.id}-${c.id}">
-      <span class="lab">${c.id} · registered source text</span><h4>${esc(m.title)}</h4><div class="lab" style="color:var(--muted)">${esc(m.outlet)}</div>
+      <span class="lab">${disp(c.id)} · registered source text</span><h4>${esc(m.title)}</h4><div class="lab" style="color:var(--muted)">${esc(m.outlet)}</div>
       <blockquote>${esc(c.text)}</blockquote>
       <div class="kv"><span>url</span><a href="${esc(m.url)}" target="_blank" rel="noopener">${esc(m.url)}</a>
       <span>published</span><span class="claim">${fmt(m.published_at)}, claimed by the feed</span>
@@ -94,11 +96,11 @@ async function verify(body, b) {
   const res = $(".res", body); res.className = "res"; res.textContent = "checking against Arc…";
   try {
     const r = await NewsVerify.verify(b, { onCall: (n) => (res.textContent = `checking against Arc… ${n} RPC calls`) });
-    const li = (x) => `<li class="${x.ok === null ? "skip" : x.ok ? "ok" : "bad"}">${esc(x.check)}${x.detail && x.ok !== true ? `. ${esc(x.detail)}` : ""}</li>`;
+    const li = (x) => `<li class="${x.ok === null ? "skip" : x.ok ? "ok" : "bad"}">${esc(disp(x.check))}${x.detail && x.ok !== true ? `. ${esc(x.detail)}` : ""}</li>`;
     r.citations.forEach((c) => { const ul = body.querySelector(`ul[data-c="${c.id}"]`); if (ul) ul.innerHTML = c.checks.map(li).join(""); });
     $(".scope", body).innerHTML = [...r.header, ...r.scope, ...r.model_call].map(li).join("");
     res.className = "res " + (r.all_pass ? "pass" : "fail");
-    res.textContent = (b._t ? `Tampered (${b._t}): ` : "") + (r.all_pass ? `All checks passed. ${r.rpc_calls} calls went to the Arc RPC and none to our server.` : "Verification failed");
+    res.textContent = (b._t ? `Tampered (${disp(b._t)}): ` : "") + (r.all_pass ? `All checks passed. ${r.rpc_calls} calls went to the Arc RPC and none to our server.` : "Verification failed");
   } catch (e) { res.className = "res fail"; res.textContent = e.message; }
 }
 
