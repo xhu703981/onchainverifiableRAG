@@ -7,8 +7,10 @@
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const bare = (m) => String(m || "?").split("/").pop();
   // custom glyphs: verified = filled seal with a square-capped tick; failed = hollow ring with a cross (shape, not only colour)
-  const MARK = { ok: "M11.2 17.6l3.9 3.9 7.7-8.4", bad: "M12.6 12.6l8.8 8.8M21.4 12.6l-8.8 8.8" };
-  const SEAL = (ok) => `<svg width="15" height="15" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="15.5" fill="${ok ? "var(--seal)" : "none"}" stroke="${ok ? "var(--seal)" : "var(--fail)"}" stroke-width="${ok ? 1 : 2.4}"/><path d="${ok ? MARK.ok : MARK.bad}" fill="none" stroke="${ok ? "var(--paper)" : "var(--fail)"}" stroke-width="${ok ? 3 : 2.6}" stroke-linecap="square"/></svg>`;
+  // chain-link glyphs: verified = closed, filled link with a tick; failed = link broken open (gap) with a cross. Shape, not only colour.
+  const MARK = { ok: "M16 14.5l4.5 4.5 9.5-10", bad: "M18.5 9.5l9 9M27.5 9.5l-9 9" };
+  const LINK = (cls) => `<svg class="g" viewBox="0 0 46 28" aria-hidden="true"><rect class="ring" x="1" y="1" width="44" height="26" rx="13"/><rect class="gap" x="5" y="-1" width="5" height="30"/><path class="mk"${cls ? ` d="${MARK[cls]}"` : ""}/></svg>`;
+  const SEAL = (ok) => `<svg width="26" height="16" viewBox="0 0 46 28" aria-hidden="true"><rect x="1.5" y="1.5" width="43" height="25" rx="12.5" fill="${ok ? "var(--cobalt)" : "var(--void-wash)"}" stroke="${ok ? "var(--cobalt)" : "var(--void)"}" stroke-width="3"/>${ok ? "" : `<rect x="5" y="-1" width="5" height="30" fill="var(--paper)"/>`}<path d="${ok ? MARK.ok : MARK.bad}" fill="none" stroke="${ok ? "#fff" : "var(--void)"}" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   const DL = '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="square" aria-hidden="true"><path d="M8 2.5v8M4.5 7.5L8 11l3.5-3.5M3 13.5h10"/></svg>';
   const hexSpans = (h, other) => { // group a hex string in 8s; underline characters that differ from `other`
     const s = String(h ?? ""); if (!/^0x[0-9a-f]+$/i.test(s) && !/^b[a-z2-7]+$/.test(s)) return esc(s);
@@ -17,7 +19,7 @@
     return `<span class="hx">${out}</span>`; };
   try { performance.setResourceTimingBufferSize(5000); } catch (e) {}
   // load every face up front so verifying never triggers a request to the page's own origin
-  try { ["400 12px 'Plex Mono'", "500 12px 'Plex Mono'", "400 12px 'Plex Sans'", "500 12px 'Plex Sans'", "400 12px Newsreader"].forEach((f) => document.fonts.load(f)); } catch (e) {}
+  try { ["400 12px 'Atkinson Next'", "700 12px 'Atkinson Next'", "400 12px 'Atkinson Mono'"].forEach((f) => document.fonts.load(f)); } catch (e) {}
 
   function newTurn(thread, q) {
     const t = document.createElement("div"); t.className = "turn";
@@ -70,13 +72,13 @@
         : f(/^C2 corpus/) ? "corpus: the ranking differs from the one committed before the model call"
         : f(/^C5 fetched/) ? "corpus: the fetched files don't match the on-chain commitment"
         : "corpus: " + strip(firstBad(cc));
-      cols.push([{ k: "c", lbl: "Corpus", sub: `${Number(R.leaf_count).toLocaleString("en-US")} docs · v${R.corpus_version}`, tags: ["corpus"], checks: cc,
+      cols.push([{ k: "c", lbl: "Corpus", sub: `${Number(R.leaf_count).toLocaleString("en-US")} passages`, tags: ["corpus"], checks: cc,
         ok: v ? cc.length > 0 && cc.every((x) => x.ok !== false) : true, why, skipped }]); }
     cols.push([{ k: "q", lbl: "Question", sub: "Arc testnet", tags: ["net"], checks: v ? v.header : [], ok: headOk, why: "network: " + firstBad(v ? v.header : []) }]);
     const srcs = (b.citations || []).map((c, i) => { const r = v && v.citations[i], m3 = tagged("src:" + i);
       const ok = r ? r.status === "PASS" && allOk(m3) : true;
       const checks = r ? (r.status === "PASS" ? (r.notes || []).map((n) => ({ check: n, ok: true })) : r.reasons.map((x) => ({ check: x, ok: false }))).concat(m3) : [];
-      return { k: "s" + i, lbl: c.id, sub: "on-chain · trusted", tags: ["src:" + i], checks, ok, src: true,
+      return { k: "s" + i, lbl: c.id, sub: "trusted source", tags: ["src:" + i], checks, ok, src: true,
         why: `${c.id}: ` + (r && r.status !== "PASS" ? srcReason(r.reasons) : "text was not in the committed prompt") }; });
     cols.push(srcs.length ? srcs : [{ k: "s", lbl: "Sources", sub: "none cited", tags: [], checks: [], ok: true }]);
     if (inf) {
@@ -84,7 +86,7 @@
       const pc = rec.concat(tagged("prompt")), mcK = tagged("model"), ac = tagged("answer"), md = v && v.model;
       cols.push([{ k: "p", lbl: "Prompt", sub: "block " + inf.commit_block, tags: ["record", "prompt"], checks: pc, ok: nodeOk(pc),
         why: !recOk ? "log record: " + strip(firstBad(rec)) : mc.some((x) => /^M2 sha256/.test(x.check) && !x.ok) ? "prompt: bytes differ from the hash committed on-chain" : "prompt: " + strip(firstBad(pc)) }]);
-      cols.push([{ k: "m", lbl: bare(inf.model), wide: 1, sub: md ? `served ${bare(md.served)} · ${md.provider || "?"}` : "requested", tags: ["model"], rec: 1, checks: mcK, ok: nodeOk(mcK),
+      cols.push([{ k: "m", lbl: bare(inf.model), wide: 1, sub: md ? `served by ${md.provider || "unknown"}` : "requested", tags: ["model"], rec: 1, checks: mcK, ok: nodeOk(mcK),
         why: "model: " + (md && !md.match ? `requested ${bare(md.requested)}, served ${bare(md.served)}` : mc.some((x) => /^M4 sha256/.test(x.check) && !x.ok) ? "response bytes don't match the on-chain hash" : "differs from the model committed on-chain") }]);
       cols.push([{ k: "a", lbl: "Answer", sub: "block " + inf.finalize_block, tags: ["answer"], rec: 1, checks: ac, ok: nodeOk(ac),
         why: "answer: " + (ac.some((x) => /^M4 bundle answer/.test(x.check) && !x.ok) ? "differs from the response logged on-chain" : ac.some((x) => /^M4 sha256/.test(x.check) && !x.ok) ? "response bytes don't match the on-chain hash" : strip(firstBad(ac))) }]);
@@ -105,7 +107,7 @@
     const ev = v.evidence || {}, items = [].concat(...n.tags.map((t) => ev[t] || []));
     if (n.rec) items.unshift(...(ev.record || []).filter((x) => x.kind === "rpc" && /213681cd/.test(JSON.stringify(x.req.params))));
     let h = "";
-    if (n.checks.length) h += `<h4>Checks</h4>` + n.checks.map((c) => `<div class="ck ${c.ok === null ? "skip" : c.ok ? "ok" : "bad"}"><i></i><span>${esc(strip(c.check))}${c.detail && (!c.ok || /^M6|^C[1345]/.test(c.check)) ? ` <span class="d">· ${esc(c.detail)}</span>` : ""}</span></div>`).join("");
+    if (n.checks.length) h += `<h4>Checks</h4>` + n.checks.map((c) => `<div class="ck ${c.ok === null ? "skip" : c.ok ? "ok" : "bad"}"><i></i><span>${esc(strip(c.check))}${c.detail && (!c.ok || /^M6|^C[1345]/.test(c.check)) ? `<span class="d">${esc(c.detail)}</span>` : ""}</span></div>`).join("");
     if (n.k === "c") h += corpusHTML(items, n);
     const cmps = items.filter((x) => x.kind === "cmp" || x.kind === "fact");
     if (cmps.length) h += `<h4>Recomputed in your browser <small>against the chain</small></h4>` + cmps.map((x) => x.kind === "fact"
@@ -132,7 +134,7 @@
   function corpusHTML(items, n) {
     let h = "";
     for (const pr of items.filter((x) => x.kind === "proof")) {
-      h += `<h4>Inclusion proof <small>Merkle path, recomputed in your browser</small></h4><div class="ev"><div class="hd">${esc(pr.label)} · leaf ${esc(pr.index)} of ${Number(pr.leaves).toLocaleString("en-US")}<span class="verdict ${pr.ok ? "ok" : "bad"}">${pr.ok ? "reaches the on-chain root" : "does not reach the root"}</span></div>
+      h += `<h4>Inclusion proof <small>Merkle path, recomputed in your browser</small></h4><div class="ev"><div class="hd">${esc(pr.label[0].toUpperCase() + pr.label.slice(1))}, leaf ${esc(pr.index)} of ${Number(pr.leaves).toLocaleString("en-US")}<span class="verdict ${pr.ok ? "ok" : "bad"}">${pr.ok ? "reaches the on-chain root" : "does not reach the root"}</span></div>
         <div class="kv path"><span class="k">passage</span><span class="v">${hexSpans(pr.id)}</span>` +
         (pr.steps || []).map((s, i) => s.op === "leaf" ? `<span class="k">leaf</span><span class="v">${hexSpans(s.value)}</span>`
           : `<span class="k">${s.op === "up" ? "carry ↑" : (s.op === "L" ? "⊕ left" : "⊕ right")}</span><span class="v">${s.op === "up" ? `<span class="note">odd node, promoted</span>` : hexSpans(s.sib)}</span>`).join("") +
@@ -142,33 +144,34 @@
       h += `<h4>Replay <small>committed retriever, rerun in your browser</small></h4>`;
       if (r.error) { h += `<div class="ev"><div class="hd">could not fetch the committed corpus from ${esc(new URL(r.uri).host)}<span class="verdict bad">not run</span></div><div class="kv"><span class="k">run locally</span><span class="v">${cmdRow("python verify_citations.py bundle.json")}</span></div></div>`; continue; }
       const src = r.uri.match(/github(?:usercontent)?\.com\/([^/]+\/[^/]+)\/([0-9a-f]{7})/);
-      h += `<div class="ev"><div class="kv">${(r.arts || []).map((a) => `<span class="k">${esc(a.name.replace("retriever code", "code").replace("model weights", "weights"))}</span><span class="v"><a target="_blank" rel="noopener" href="${esc(a.url)}">${esc(a.url.split("/").pop())}</a> <span class="note">· ${mb(a.bytes)} · sha256 ${short(a.sha256)} ${a.ok ? "≡ committed" : "≠ committed"}</span></span>`).join("")}
-        <span class="k">source</span><span class="v note">${src ? `${esc(src[1])} @ ${esc(src[2])}, pinned by the on-chain URI` : esc(r.uri)}</span></div></div>`;
+      h += `<div class="ev"><div class="kv">${(r.arts || []).map((a) => `<span class="k">${esc(a.name.replace("retriever code", "code").replace("model weights", "weights"))}</span><span class="v"><a target="_blank" rel="noopener" href="${esc(a.url)}">${esc(a.url.split("/").pop())}</a> <span class="note">${mb(a.bytes)}, sha256 ${short(a.sha256)} ${a.ok ? "≡ committed" : "≠ committed"}</span></span>`).join("")}
+        <span class="k">source</span><span class="v note">${src ? `${esc(src[1])} at commit ${esc(src[2])}, pinned by the on-chain URI` : esc(r.uri)}</span></div></div>`;
       if (r.rows) { const show = r.rows.filter((x, i) => i < 8 || !x.same);
-        h += `<div class="ev"><div class="hd">${r.rows.length} candidates · ${r.ms} ms<span class="verdict ${r.ok ? "ok" : "bad"}">${r.ok ? "≡ identical ranking" : "≠ ranking differs"}</span></div><div class="rk">
-          <span class="th">#</span><span class="th">replayed</span><span class="th">bm25 · dense</span><span class="th">in the answer</span>` +
-          show.map((x) => `<span class="n">${x.rank}</span><span class="v">${short(x.id)}</span><span class="s">${x.replay.bm25 ?? "–"} · ${x.replay.dense ?? "–"}</span><span class="${x.same ? "ok" : "bad"}">${x.same ? "≡ same" : (r.missing.includes(x.id) ? "omitted" : short((x.committed || {}).id || "—"))}</span>`).join("") +
+        h += `<div class="ev"><div class="hd">${r.rows.length} candidates replayed in ${r.ms} ms<span class="verdict ${r.ok ? "ok" : "bad"}">${r.ok ? "≡ identical ranking" : "≠ ranking differs"}</span></div><div class="rk">
+          <span class="th">#</span><span class="th">replayed</span><span class="th">bm25 / dense</span><span class="th">in the answer</span>` +
+          show.map((x) => `<span class="n">${x.rank}</span><span class="v">${short(x.id)}</span><span class="s">${x.replay.bm25 ?? "–"} / ${x.replay.dense ?? "–"}</span><span class="${x.same ? "ok" : "bad"}">${x.same ? "≡ same" : (r.missing.includes(x.id) ? "omitted" : short((x.committed || {}).id || "—"))}</span>`).join("") +
           `</div>${r.rows.length > show.length ? `<div class="more">+ ${r.rows.length - show.length} more, all identical</div>` : ""}</div>`; }
     }
     return h;
   }
 
   // ---------- verify (in the browser) ----------
-  function nodeHTML(n) { return `<div class="node wait${n.wide ? " wide" : ""}" data-k="${n.k}" title="click for evidence"><svg class="g" viewBox="0 0 34 34" aria-hidden="true"><circle class="ring" cx="17" cy="17" r="15.5"/><path class="mk"/></svg><div class="lbl">${esc(n.lbl)}</div><div class="sub">${esc(n.sub)}</div></div>`; }
+  function nodeHTML(n) { return `<div class="node wait${n.wide ? " wide" : ""}" data-k="${n.k}" role="button" tabindex="0" title="Show on-chain evidence">${LINK()}<div class="lbl">${esc(n.lbl)}</div><div class="sub">${esc(n.sub)}</div></div>`; }
   async function verify(body, b, tampered) {
     body.querySelector(".ptx").innerHTML = "";
     const vf = body.querySelector(".vf"), cols0 = build(b, null);
-    vf.innerHTML = `<div class="flow">${cols0.map((c, i) => (i ? `<div class="link" data-l="${i}"></div>` : "") + `<div class="col">${c.map(nodeHTML).join("")}</div>`).join("")}</div>
+    vf.innerHTML = `<div class="flow">${cols0.map((c, i) => (i ? `<div class="link" data-l="${i}"></div>` : "") + `<div class="col${c.length > 1 ? " multi" : ""}" data-c="${i}">${c.map(nodeHTML).join("")}</div>`).join("")}</div>
       <div class="why"></div><div class="how"></div><div class="hint"></div><div class="det"></div>`;
     vf.querySelector(".det").style.display = "none";
     const t0 = performance.now(); let v;
     const how = vf.querySelector(".how");
-    try { v = await A().verifyBundle(b, { onStatus: (m) => (how.textContent = b.retrieval ? `replaying retrieval · ${m} from the committed URI…` : "") }); }
+    try { v = await A().verifyBundle(b, { onStatus: (m) => (how.textContent = b.retrieval ? `Replaying retrieval: ${m} from the committed URI…` : "") }); }
     catch (e) { vf.querySelector(".why").textContent = "could not reach the Arc RPC from your browser: " + e.message;
       vf.querySelector(".how").textContent = "verify offline-of-us instead: python verify_citations.py bundle.json  (or the cast commands in the README)"; return; }
     const mine = location.origin && location.origin !== "null"
       ? performance.getEntriesByType("resource").filter((e) => e.startTime >= t0 && new URL(e.name).origin === location.origin).length : 0;
     const cols = build(b, v), byk = Object.fromEntries(cols.flat().map((n) => [n.k, n])), det = vf.querySelector(".det");
+    vf.querySelectorAll(".node").forEach((el) => (el.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); el.click(); } }));
     vf.querySelectorAll(".node").forEach((el) => (el.onclick = () => {
       const same = det.dataset.k === el.dataset.k && det.style.display !== "none";
       vf.querySelectorAll(".node").forEach((o) => o.classList.remove("sel"));
@@ -183,12 +186,13 @@
         el.querySelector(".mk").setAttribute("d", n.ok ? MARK.ok : MARK.bad); el.setAttribute("aria-label", `${n.lbl}: ${n.ok ? "verified" : "failed"}`);
         if (!n.ok && n.src) el.querySelector(".sub").textContent = "not verified";
         if (n.k === "m") el.querySelector(".sub").textContent = n.sub;
-        if (n.k === "c" && n.skipped) el.querySelector(".sub").textContent = "replay: run locally";
+        if (n.k === "c" && n.skipped) el.querySelector(".sub").textContent = "run replay locally";
         if (!n.ok && !bad) bad = n; await sleep(200); }
+      vf.querySelector(`[data-c="${i}"]`).classList.add(cols[i].every((n) => n.ok) ? "ok" : "bad");
     }
     const why = vf.querySelector(".why");
     if (bad) { why.className = "why"; why.innerHTML = SEAL(false) + `<span>${esc(bad.why)}</span>` + (tampered ? `<span class="tag">tampered ${esc(b._t || "copy")}</span>` : ""); }
-    else { why.className = "why okk"; why.innerHTML = SEAL(true) + `<span>${v.all_pass ? "Verified on Arc" : "Model call verified · no sources were cited"}</span>`; }
+    else { why.className = "why okk"; why.innerHTML = SEAL(true) + `<span>${v.all_pass ? "Verified on Arc" : "Model call verified, but no sources were cited"}</span>`; }
     vf.querySelector(".hint").textContent = "Click a node to see the on-chain evidence.";
     G.__lastVerify = v;
     vf.querySelector(".how").textContent = `Checked in your browser, directly against ${new URL(v.rpc).host}: ${v.rpc_calls} RPC calls, ${mine} to our server${b.retrieval ? `; replay files from ${(v.evidence.corpus || []).some((x) => x.kind === "replay" && x.arts) ? "raw.githubusercontent.com, sha256-checked" : "—"}` : ""}.`;

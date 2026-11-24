@@ -4,22 +4,18 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Verifiable RAG</title>
-<link rel="preload" href="/static/fonts/newsreader-opsz.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/static/fonts/plex-sans-400.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/static/fonts/plex-sans-500.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/static/fonts/plex-mono-400.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/static/fonts/plex-mono-500.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/static/fonts/atkinson-next.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/static/fonts/atkinson-mono.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/static/ui.css">
 </head>
 <body>
 <div class="wrap">
-  <div class="top"><h1><b>Verifiable</b> RAG</h1><button class="file" id="file" title="Verify a downloaded bundle, entirely in your browser">verify a file</button></div>
-  <div class="chips" id="chips"></div>
-  <div id="thread"></div>
+  <header class="top"><h1>Verifiable RAG</h1><p>Answers from trusted sources, checkable on Arc testnet.</p><button class="file" id="file" title="Verify a downloaded bundle, entirely in your browser">Verify a file</button></header>
+  <main class="main"><div class="chips" id="chips"></div><div id="thread"></div></main>
 </div>
 <div class="drop" id="drop">Drop a bundle to verify it in your browser</div>
-<div class="ask"><form id="f"><input id="q" placeholder="Ask anything…" autocomplete="off"><button id="go" aria-label="Ask">
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button></form></div>
+<div class="ask"><form id="f"><div class="in"><input id="q" placeholder="Ask a question" aria-label="Question" autocomplete="off"><button id="go" aria-label="Ask">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button></div></form></div>
 <script src="/static/noble-hashes.min.js"></script>
 <script src="/static/replay.js"></script>
 <script src="/static/arcverify.js"></script>

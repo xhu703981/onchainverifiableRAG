@@ -20,7 +20,7 @@ html = f"""<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Verify an answer bundle · Arc testnet</title>
-<!-- Fonts: Newsreader and IBM Plex (SIL Open Font License 1.1), embedded. Standalone verifier. Everything below is inlined; the only network requests go to https://rpc.testnet.arc.io and, for the retrieval replay, the committed corpus/model files on https://raw.githubusercontent.com (sha256-checked) -->
+<!-- Fonts: Atkinson Hyperlegible Next and Mono (SIL Open Font License 1.1), embedded. Standalone verifier. Everything below is inlined; the only network requests go to https://rpc.testnet.arc.io and, for the retrieval replay, the committed corpus/model files on https://raw.githubusercontent.com (sha256-checked) -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src https://rpc.testnet.arc.io https://raw.githubusercontent.com">
 <style>
 {css_inline_fonts(read("ui.css"))}
@@ -28,10 +28,9 @@ html = f"""<!doctype html>
 </head>
 <body>
 <div class="wrap">
-  <div class="top"><h1><b>Verify</b> an answer</h1></div>
-  <div class="zone" id="zone">Drop an answer bundle (.json) here, or click to choose a file
-    <div class="how" style="margin-top:8px">runs entirely in this page · talks only to rpc.testnet.arc.io · replay files from raw.githubusercontent.com, hash-checked</div></div>
-  <div id="thread" style="margin-top:48px"></div>
+  <header class="top"><h1>Verify an answer</h1><p>Runs in this page. It talks only to rpc.testnet.arc.io and fetches the replay files from raw.githubusercontent.com, hash-checked.</p></header>
+  <main class="main"><div class="zone" id="zone">Drop an answer bundle here, or choose a file</div>
+  <div id="thread" style="margin-top:48px"></div></main>
 </div>
 <div class="drop" id="drop">Drop to verify</div>
 <script>
