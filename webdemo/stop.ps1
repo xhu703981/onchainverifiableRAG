@@ -2,14 +2,26 @@
 param([int]$Port = 8765, [int]$NewsPort = 8766)
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 
+function Get-ListenPid([int]$port) {
+  foreach ($line in (netstat -ano -p tcp)) {
+    if ($line -match ("^\s*TCP\s+(127\.0\.0\.1|\[::1\]):" + $port + "\s+\S+\s+LISTENING\s+(\d+)\s*$")) {
+      return [int]$Matches[2]
+    }
+  }
+  return $null
+}
+
+function Stop-Tree([int]$id, $label) {
+  Get-CimInstance Win32_Process -Filter "ParentProcessId=$id" -ErrorAction SilentlyContinue |
+    ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+  Stop-Process -Id $id -Force -ErrorAction SilentlyContinue
+  Write-Host "Stopped $label PID $id"
+}
+
 function Stop-PidFile($pidFile, $label) {
   $id = Get-Content $pidFile -ErrorAction SilentlyContinue
   if ($id -and (Get-Process -Id $id -ErrorAction SilentlyContinue)) {
-    # The venv python.exe launcher often has a child interpreter; stop the tree.
-    Get-CimInstance Win32_Process -Filter "ParentProcessId=$id" -ErrorAction SilentlyContinue |
-      ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
-    Stop-Process -Id $id -Force -ErrorAction SilentlyContinue
-    Write-Host "Stopped $label PID $id"
+    Stop-Tree ([int]$id) $label
   } else {
     Write-Host "$label not running"
   }
@@ -17,11 +29,9 @@ function Stop-PidFile($pidFile, $label) {
 }
 
 function Stop-Port([int]$port, $label) {
-  $conns = Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue |
-    Where-Object { $_.LocalAddress -eq "127.0.0.1" -or $_.LocalAddress -eq "::1" }
-  foreach ($c in $conns) {
-    Stop-Process -Id $c.OwningProcess -Force -ErrorAction SilentlyContinue
-    Write-Host "Stopped $label listener on $port (PID $($c.OwningProcess))"
+  $listenPid = Get-ListenPid $port
+  if ($listenPid) {
+    Stop-Tree $listenPid "$label listener on $port"
   }
 }
 

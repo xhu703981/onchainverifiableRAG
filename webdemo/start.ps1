@@ -13,15 +13,20 @@ function Get-AlivePid($pidFile) {
   return $null
 }
 
-function Test-PortBusy([int]$port) {
-  return [bool](Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue)
+function Get-ListenPid([int]$port) {
+  foreach ($line in (netstat -ano -p tcp)) {
+    if ($line -match ("^\s*TCP\s+(127\.0\.0\.1|\[::1\]):" + $port + "\s+\S+\s+LISTENING\s+(\d+)\s*$")) {
+      return [int]$Matches[2]
+    }
+  }
+  return $null
 }
 
 $pidFile = Join-Path $here "server.pid"
 $alive = Get-AlivePid $pidFile
 if ($alive) {
   Write-Host "Demo already running (PID $alive) -> http://127.0.0.1:$Port"
-} elseif (Test-PortBusy $Port) {
+} elseif (Get-ListenPid $Port) {
   Write-Host "Port $Port is busy; pass -Port <other> for the existing demo"
 } else {
   $p = Start-Process -FilePath $py -ArgumentList "app.py","--port",$Port -WorkingDirectory $here `
@@ -37,7 +42,7 @@ if (Test-Path $newsApp) {
   $nalive = Get-AlivePid $newsPidFile
   if ($nalive) {
     Write-Host "News already running (PID $nalive) -> http://127.0.0.1:$NewsPort"
-  } elseif (Test-PortBusy $NewsPort) {
+  } elseif (Get-ListenPid $NewsPort) {
     Write-Host "Port $NewsPort is busy; pass -NewsPort <other> for the news page"
   } else {
     $p = Start-Process -FilePath $py -ArgumentList "news\app.py","--host","127.0.0.1","--port",$NewsPort -WorkingDirectory $here `
