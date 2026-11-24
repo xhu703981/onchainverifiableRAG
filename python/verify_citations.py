@@ -36,6 +36,16 @@ If the bundle has a "retrieval" section (corpus committed on CorpusRegistry), it
      exactly what that response contains
   M5 commit happened in an earlier block than finalize, and the commit/finalize txs are the real
      log txs for this answerId
+If the bundle has an "answer_root" section (the default for new answers: ONE 32-byte root on AnswerRegistry), the
+model-call checks are instead:
+  A1 the root is recorded on AnswerRegistry by an authorized recorder (recordOf + the record tx's event), and the
+     bundle's fixed list of labeled leaves hashes to it
+  A2 every leaf recomputed from the bundle (corpus root, config, anchor block, question, ranked list, request,
+     model, served model, provider, response, answer + cited text hashes, three self-reported step times)
+     == the committed leaf, so changing any piece changes the root
+  A3 the anchor Arc block (number:hash, inside the root and the hashed request) is real, so the request was not
+     built before it; the record block bounds it from above: the whole exchange happened between block A and B
+  M2-M4, M6 content checks against the committed request/response (as below)
 It does NOT verify the model's reasoning, and cannot prove the provider (not us) produced the response.
 
 usage:  python verify_citations.py bundle.json [--rpc URL] [--trust 0xPUBLISHER ...] [--json]
@@ -73,10 +83,14 @@ SEL = {
     "corpusUri(uint256)": "72043b4c",
     "isPublisher(address)": "41859ac8",
     "areVerified(bytes32[])": "633fb9d6",
+    "recordOf(bytes32)": "d1c60a3a",
+    "isRecorder(address)": "646ce049",
+    "record(bytes32)": "b5c645bd",
 }
 TOPIC_PUBLISHED = "0xdebe376ae487887d2f2d702990e68cfabfda127316e4bfadd2fb12543feda5f0"  # CorpusPublished(uint256,bytes32,bytes32,uint32,string,address)
 TOPIC_COMMITTED = "0xadf8196e120a50637d1c52b3c736d871cbcfc2d5ca0657e25fdc896d309b109f"  # Committed(bytes32,bytes32,bytes32,bytes32,bytes32,uint16,address,uint256)
 TOPIC_FINALIZED = "0x02a8371a72fc60e40fcdf94ce82c6dce89d0cb3cc9548163b5b7a708d6cde9bc"  # Finalized(bytes32,bytes32,address,uint256)
+TOPIC_RECORDED = "0x4e5ce7eba9643fc6489f23e7f64a6909cd29e6e5805dd1881707a933736a88d1"  # AnswerRecorded(bytes32,address,uint256,uint256)
 # event topic0 = keccak256(event signature); `cast sig-event "..."`
 TOPIC_BATCH = "0x690acb70d32f442b76eb39528ae4a4f120c7fde32126ba7bfc99751ff55c4c79"   # BatchRegistered(address,uint256,uint256,uint256)
 TOPIC_SINGLE = "0x9feea9c51f33feebec7441e03b787dd4fd9298c7f29168099e68745beaeb08a9"  # SourceRegistered(bytes32,string,address,uint256)
@@ -274,6 +288,8 @@ PASSAGE_RE = re.compile(r"\[(P\d+)\] (.*?)(?=\n\n\[P\d+\] |\n\nQuestion: )", re.
 
 def verify_inference(rpc: RPC, b: dict) -> list[tuple[str, bool, str]]:
     """Return a list of (check, ok, detail)."""
+    if "answer_root" in b:  # single-root bundle (AnswerRegistry); InferenceLog bundles below stay verifiable
+        return verify_answer(rpc, b)
     inf = b["inference"]; out = []
     def chk(name, ok, detail=""):
         out.append((name, bool(ok), detail)); return bool(ok)
@@ -358,6 +374,147 @@ def verify_inference(rpc: RPC, b: dict) -> list[tuple[str, bool, str]]:
         chk("M5 client request timestamp is not after the commit (<=60 s skew)", cts <= ct + 60, f"client {cts:.1f} vs commit block time {ct}")
     except Exception as e:  # noqa: BLE001
         chk("M5 client timestamp parses", False, str(e))
+    return out
+
+
+# ---------------------------------------------------------------- single answer root (A checks)
+# One 32-byte root per answer, recorded on AnswerRegistry. Fixed, ordered, labeled leaves:
+#   x    = sha256(label || 0x00 || value)        (utf-8; hashes as lowercase 0x-hex, times as ISO-8601 UTC)
+#   leaf = sha256(0x00 || x), node = sha256(0x01 || l || r), odd node promoted  (same tree as the corpus)
+ANSWER_LEAVES = ["corpus_root", "retrieval_config", "anchor_block", "question", "ranked", "t_retrieval", "request",
+                 "t_request", "model", "served_model", "provider", "response", "t_response", "answer"]
+SELF_REPORTED = {"t_retrieval", "t_request", "t_response"}
+
+
+def answer_leaf_x(label: str, value: str) -> bytes:
+    return hashlib.sha256(label.encode("utf-8") + b"\x00" + value.encode("utf-8")).digest()
+
+
+def answer_root_of(pairs: list[tuple[str, str]]) -> str:
+    if not pairs:
+        return "0x" + "00" * 32
+    return "0x" + merkle_levels([answer_leaf_x(k, v) for k, v in pairs])[-1][0].hex()
+
+
+def answer_leaf_proof(pairs: list[tuple[str, str]], label: str) -> list[str]:
+    """Merkle path for one leaf (check a single value against the on-chain root with merkle_verify)."""
+    lv = merkle_levels([answer_leaf_x(k, v) for k, v in pairs])
+    return merkle_proof(lv, [k for k, _ in pairs].index(label))
+
+
+def answer_leaf_values(b: dict) -> list[tuple[str, str]]:
+    """Recompute every leaf value from the bundle's own content (nothing is taken from answer_root.leaves)."""
+    R, I = b.get("retrieval") or {}, b.get("inference") or {}
+    try:
+        resp = base64.b64decode(I.get("response_body_b64") or "")
+    except Exception:  # noqa: BLE001
+        resp = b""
+    sm = served_model(resp); ab = I.get("anchor_block") or {}
+    ans = canonical({"answer": b.get("answer"), "citations": [[c.get("id"), _sha((c.get("text") or "").encode("utf-8"))]
+                                                              for c in b.get("citations", [])]})
+    v = dict(corpus_root=(R.get("corpus_root") or "").lower(), retrieval_config=(R.get("config_hash") or "").lower(),
+             anchor_block=f"{ab.get('number')}:{(ab.get('hash') or '').lower()}", question=b.get("question") or "",
+             ranked=_sha((R.get("ranked_json") or "").encode("utf-8")), t_retrieval=I.get("retrieval_done_ts") or "",
+             request=_sha((I.get("request_body") or "").encode("utf-8")), t_request=I.get("client_request_ts") or "",
+             model=I.get("model") or "", served_model=sm["served"] or "", provider=sm["provider"] or "",
+             response=_sha(resp), t_response=I.get("client_response_received_ts") or "", answer=_sha(ans))
+    return [(k, str(v[k])) for k in ANSWER_LEAVES]
+
+
+def iso_ms(s: str) -> int:
+    m = re.fullmatch(r"(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})\.(\d{1,6})Z", s or "")
+    if not m:
+        raise ValueError(f"time data {s!r} does not match format")
+    import calendar
+    g = [int(x) for x in m.groups()[:6]]
+    return calendar.timegm((g[0], g[1], g[2], g[3], g[4], g[5], 0, 0, 0)) * 1000 + int(m.group(7)[:3].ljust(3, "0"))
+
+
+def _cut(v: str) -> str:
+    return v if len(v) <= 20 else v[:18] + "..."
+
+
+def verify_answer(rpc: RPC, b: dict) -> list[tuple[str, bool, str]]:
+    A, I = b["answer_root"], b["inference"]; out = []
+    def chk(name, ok, detail=""):
+        out.append((name, bool(ok), detail)); return bool(ok)
+    reg, claimed = A["registry"], A["root"].lower()
+    if not chk("A1 AnswerRegistry has code", rpc("eth_getCode", [reg, "latest"]) not in ("0x", "0x0"), reg):
+        return out
+    rec = rpc.call(reg, "recordOf(bytes32)", claimed[2:])
+    recorder, rb, rt = as_addr(word(rec, 0)), as_int(word(rec, 1)), as_int(word(rec, 2))
+    if not chk("A1 answer root is recorded on Arc", int(recorder, 16) != 0, f"{claimed[:18]}... in block {rb}"):
+        return out
+    chk("A1 recorded by an authorized recorder", as_int(rpc.call(reg, "isRecorder(address)", pad_addr(recorder))) == 1
+        and (A.get("recorder") or recorder).lower() == recorder.lower(), f"recorder {recorder}")
+    rc = rpc("eth_getTransactionReceipt", [A.get("record_tx")])
+    chk("A1 record tx emitted AnswerRecorded(root) in that block", bool(rc) and int(rc["status"], 16) == 1
+        and int(rc["blockNumber"], 16) == rb and any(l["address"].lower() == reg.lower() and l["topics"][0] == TOPIC_RECORDED
+                                                     and l["topics"][1] == claimed for l in rc["logs"]), str(A.get("record_tx")))
+    stored = [(str(x.get("label")), str(x.get("value"))) for x in A.get("leaves", [])]
+    chk("A1 the bundle's labeled leaves hash to the recorded root",
+        [k for k, _ in stored] == ANSWER_LEAVES and answer_root_of(stored) == claimed, f"{len(stored)} leaves in fixed order")
+    committed = dict(stored); mine = answer_leaf_values(b)
+    for k, v in mine:
+        c = committed.get(k, "")
+        chk(f"A2 {k} leaf == value recomputed from the bundle", v == c,
+            ("self-reported" if k in SELF_REPORTED else "") if v == c else f"recomputed {_cut(v)}, committed {_cut(c)}")
+    mroot = answer_root_of(mine); diff = [k for (k, v) in mine if v != committed.get(k, "")]
+    chk("A2 root recomputed from the bundle == recorded root", mroot == claimed,
+        f"recomputed {mroot[:18]}..." + (f"; changed: {', '.join(diff)}" if diff else ""))
+
+    ab = I.get("anchor_block") or {}; n = int(ab.get("number") or 0)
+    blk = rpc("eth_getBlockByNumber", [hex(n), False])
+    at = int(blk["timestamp"], 16) if blk else 0
+    a_ok = bool(blk) and blk["hash"].lower() == (ab.get("hash") or "").lower()
+    chk("A3 anchor block hash matches Arc (request not built before it)", a_ok, f"block {n} at unix {at}")
+    chk("A3 anchor block is before the record block", a_ok and n < rb, f"between block {n} and block {rb} ({rt - at} s)")
+    try:
+        tr, tq, ts = (iso_ms(I.get(k) or "") for k in ("retrieval_done_ts", "client_request_ts", "client_response_received_ts"))
+        chk("A3 self-reported step times are in order and inside the window",
+            at * 1000 - 2000 <= tr <= tq <= ts <= rt * 1000 + 5000,
+            f"retrieval +{tr - at * 1000} ms, prompt +{tq - at * 1000} ms, response +{ts - at * 1000} ms after block {n} (self-reported)")
+    except ValueError as e:
+        chk("A3 step timestamps parse", False, str(e))
+
+    # content checks: everything below is covered by the root (request, response and answer are leaves)
+    req_bytes = (I.get("request_body") or "").encode("utf-8")
+    try:
+        body = json.loads(req_bytes)
+    except Exception as e:  # noqa: BLE001
+        chk("M2 request body is JSON", False, str(e)); return out
+    chk("M2 request bytes are canonical JSON", canonical(body) == req_bytes)
+    sysmsg = next((m["content"] for m in body.get("messages", []) if m.get("role") == "system"), "")
+    user = next((m["content"] for m in body.get("messages", []) if m.get("role") == "user"), "")
+    chk("M2 model in request == bundle model", body.get("model") == I.get("model"), str(body.get("model")))
+    chk("M2 nonce, client_ts and anchor block are inside the hashed request",
+        f"nonce={I.get('nonce')}" in sysmsg and f"client_ts={I.get('client_request_ts')}" in sysmsg
+        and f"arc_block={ab.get('number')}:{(ab.get('hash') or '').lower()}" in sysmsg)
+    chk("M2 question text in request == bundle question", user.rstrip().endswith("Question: " + b.get("question", "")))
+    segs = PASSAGE_RE.findall(user)
+    prompt_hashes = [(pid, _sha(t.encode("utf-8"))) for pid, t in segs]
+    listed = [(p["id"], p["content_hash"].lower()) for p in I.get("passages", [])]
+    chk("M3 passages parsed from committed prompt == bundle passage list", prompt_hashes == listed,
+        f"{len(prompt_hashes)} in prompt, {len(listed)} listed")
+    for c in b.get("citations", []):
+        inprompt = f"[{c['id']}] {c.get('text', '')}" in user
+        inlist = (c["id"], _sha(c.get("text", "").encode("utf-8"))) in prompt_hashes
+        chk(f"M3 cited {c['id']} text is verbatim in the committed prompt under that id", inprompt and inlist,
+            "" if inprompt and inlist else "this passage was NOT in the prompt sent to the model")
+    resp_bytes = base64.b64decode(I.get("response_body_b64") or "")
+    sm = served_model(resp_bytes); match, kind = model_match(I.get("model", ""), sm["served"] or "")
+    chk("M6 served model (from the hashed response) matches the requested model", match,
+        f"requested {I.get('model')} -> served {sm['served']} ({kind}) · provider {sm['provider']} (self-reported)")
+    try:
+        content = json.loads(resp_bytes)["choices"][0]["message"]["content"]
+        mj = json.loads(re.search(r"\{.*\}", content, re.S).group(0))
+    except Exception as e:  # noqa: BLE001
+        chk("M4 response parses", False, str(e)); return out
+    chk("M4 bundle answer == answer in the logged response", mj.get("answer") == b.get("answer"),
+        f"response says {mj.get('answer')!r}, bundle says {b.get('answer')!r}")
+    chk("M4 bundle citation ids == citation ids in the logged response",
+        [c["id"] for c in b.get("citations", [])] == [x for x in mj.get("citations", [])],
+        f"response cites {mj.get('citations')}, bundle cites {[c['id'] for c in b.get('citations', [])]}")
     return out
 
 
@@ -598,9 +755,12 @@ def main(argv=None) -> int:
             for x in r.get("notes", []):
                 print("         -", x)
         if inf_checks:
-            print(f"Model call (InferenceLog {b['inference']['log_contract']}, answer_id {b['inference']['answer_id'][:18]}...):")
+            if "answer_root" in b:
+                print(f"Answer root {b['answer_root']['root']} (AnswerRegistry {b['answer_root']['registry']}):")
+            else:
+                print(f"Model call (InferenceLog {b['inference']['log_contract']}, answer_id {b['inference']['answer_id'][:18]}...):")
             for n, o, d in inf_checks:
-                print(f"  [{'PASS' if o else 'FAIL'}] {n}" + (f"  -- {d}" if d and (not o or n.startswith("M6")) else ""))
+                print(f"  [{'PASS' if o else 'FAIL'}] {n}" + (f"  -- {d}" if d and (not o or n.startswith(("M6", "A1 answer", "A3"))) else ""))
         if cor:
             r = b["retrieval"]
             print(f"Corpus (CorpusRegistry {r['corpus_registry']}, v{r['corpus_version']}, root {r['corpus_root'][:18]}...):")

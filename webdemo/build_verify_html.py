@@ -18,6 +18,7 @@ html = f"""<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<link rel="icon" href="data:,">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Verify an answer bundle · Arc testnet</title>
 <!-- Fonts: Atkinson Hyperlegible Next and Mono (SIL Open Font License 1.1), embedded. Standalone verifier. Everything below is inlined; the only network requests go to https://rpc.testnet.arc.io and, for the retrieval replay, the committed corpus/model files on https://raw.githubusercontent.com (sha256-checked) -->

@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import verify_citations as vc
-from rag import CHAIN_ID, INFERENCE_LOG, SOURCE_REGISTRY, Engine
+from rag import ANSWER_REGISTRY, CHAIN_ID, INFERENCE_LOG, SOURCE_REGISTRY, Engine
 
 HERE = Path(__file__).resolve().parent
 class UTF8JSON(JSONResponse):
@@ -44,7 +44,7 @@ def standalone_verifier():
 
 @app.get("/api/health")
 def health():
-    return dict(ok=True, chain_id=CHAIN_ID, source_registry=SOURCE_REGISTRY, inference_log=INFERENCE_LOG,
+    return dict(ok=True, chain_id=CHAIN_ID, source_registry=SOURCE_REGISTRY, inference_log=INFERENCE_LOG, answer_registry=ANSWER_REGISTRY,
                 corpus=len(engine.docs), fakes=sum(d["kind"] == "fake" for d in engine.docs),
                 logger=engine.acct.address if engine.acct else None, openrouter_key_loaded=bool(engine.or_key))
 

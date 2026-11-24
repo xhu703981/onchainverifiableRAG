@@ -1,4 +1,4 @@
-"""Verified-only hybrid RAG with an on-chain inference log (Arc testnet 5042002 only)."""
+"""Verified-only RAG; every answer is condensed into ONE 32-byte root on AnswerRegistry (Arc testnet 5042002 only)."""
 from __future__ import annotations
 
 import base64, datetime, hashlib, json, os, re, secrets, threading, time, urllib.request
@@ -15,7 +15,8 @@ HERE = Path(__file__).resolve().parent
 DATA = HERE / "data"
 CHAIN_ID = 5042002
 SOURCE_REGISTRY = "0x9350E7E458abe568B40c1Fc28c66dE674865878e"
-INFERENCE_LOG = "0xc7CfFb4Ae006AccC82813829CCC466B964aBCAE3"
+INFERENCE_LOG = "0xc7CfFb4Ae006AccC82813829CCC466B964aBCAE3"  # earlier two-tx log; old bundles still verify
+ANSWER_REGISTRY = "0x580D6da6594b81e7631Ed8B5E46ae06F5C1617e0"
 EXPLORER = "https://explorer.testnet.arc.io"
 MODEL = "openai/gpt-4o-mini"
 POOL, TOPK, RRF_K = 50, 5, 60
@@ -26,13 +27,8 @@ SREG_ABI = [
      "outputs": [{"name": "exists", "type": "bool"}, {"name": "cid", "type": "string"}, {"name": "uri", "type": "string"},
                  {"name": "registrant", "type": "address"}, {"name": "timestamp", "type": "uint256"}]},
 ]
-ILOG_ABI = [
-    {"type": "function", "name": "commit", "stateMutability": "nonpayable", "outputs": [],
-     "inputs": [{"name": n, "type": t} for n, t in [("answerId", "bytes32"), ("questionId", "bytes32"), ("requestHash", "bytes32"),
-                                                     ("passagesRoot", "bytes32"), ("modelHash", "bytes32"), ("passageCount", "uint16")]]},
-    {"type": "function", "name": "finalize", "stateMutability": "nonpayable", "outputs": [],
-     "inputs": [{"name": "answerId", "type": "bytes32"}, {"name": "responseHash", "type": "bytes32"}]},
-]
+AREG_ABI = [{"type": "function", "name": "record", "stateMutability": "nonpayable", "outputs": [],
+             "inputs": [{"name": "root", "type": "bytes32"}]}]
 STOP = set("a an and are as at be by for from has he in is it its of on that the to was were will with who what when where which why how do does did".split())
 
 
@@ -80,7 +76,7 @@ class Engine:
         if int(self.w3.eth.chain_id) != CHAIN_ID:
             raise SystemExit("RPC is not Arc testnet (5042002); refusing to start")
         self.sreg = self.w3.eth.contract(address=SOURCE_REGISTRY, abi=SREG_ABI)
-        self.ilog = self.w3.eth.contract(address=INFERENCE_LOG, abi=ILOG_ABI)
+        self.areg = self.w3.eth.contract(address=ANSWER_REGISTRY, abi=AREG_ABI)
         # committed corpus v1 (CorpusRegistry on Arc): exactly what the retriever searches, in Merkle leaf order
         self.corpus = json.load(open(DATA / "corpus_onchain.json"))
         self.config_raw = (DATA / "retrieval_config_v1.json").read_bytes()
@@ -137,9 +133,13 @@ class Engine:
             raise RuntimeError("missing OPENROUTER_API_KEY or ARC_PRIVATE_KEY in .env")
         question = question.strip()
         sample = next((s for s in self.samples if s["question"].lower() == question.lower()), None)
-        qkey = sample["key"] if sample else "free:" + hashlib.sha256(question.encode()).hexdigest()[:16]
         with self.lock:
             t0 = time.perf_counter()
+            # anchor: latest Arc block, fetched before retrieval. Its hash is unpredictable, so the request
+            # (which contains it) cannot have been built before this block.
+            ab = self.w3.eth.get_block("latest")
+            anchor = dict(number=int(ab["number"]), hash="0x" + bytes(ab["hash"]).hex().removeprefix("0x").lower(),
+                          timestamp=int(ab["timestamp"]))
             ranked = self.ranked(question, _attack)
             ranked_json = canonical(ranked)
             text_of = {d["hash"]: d for d in self.docs}
@@ -147,15 +147,15 @@ class Engine:
             ok = self.sreg.functions.areVerified([x["id"] for x in ranked]).call()
             chk_ms = (time.perf_counter() - t_chk) * 1000
             kept = [x["id"] for x, o in zip(ranked, ok) if o][:self.cfg["selection"]["prompt_k"]]
+            rts0 = now_iso()  # retrieval done (self-reported)
             pool = [x["id"] for x in ranked]
             unfiltered_top = pool[:TOPK]
             passages = [dict(id=f"P{n + 1}", text=text_of[h]["text"], content_hash=h) for n, h in enumerate(kept)]
-            root = sha(b"".join(bytes.fromhex(p["content_hash"][2:]) for p in passages))
-            qid = sha(qkey.encode())
+            nonce = secrets.token_hex(16)
             cts = now_iso()
-            aid = sha(qid + cts.encode() + secrets.token_bytes(16))
             cv = self.corpus
-            meta = (f"Request metadata (audit only, do not mention): answer_id={hx(aid)}; question_id={hx(qid)}; client_ts={cts}; "
+            meta = (f"Request metadata (audit only, do not mention): nonce={nonce}; client_ts={cts}; "
+                    f"arc_block={anchor['number']}:{anchor['hash']}; "
                     f"corpus=v{cv['version']}:{cv['root']}; retrieval_config={cv['config_hash']}; retrieval={hx(sha(ranked_json))}")
             user = ("Answer the question using ONLY the numbered passages. Cite the passage ids you used.\n"
                     'Reply with JSON only: {"answer": "<short answer>", "citations": ["P1", ...]}. '
@@ -164,55 +164,58 @@ class Engine:
             body = {"model": MODEL, "temperature": 0, "max_tokens": 150,
                     "messages": [{"role": "system", "content": meta}, {"role": "user", "content": user}]}
             req = canonical(body)
-            c = self._send(self.ilog.functions.commit(aid, qid, sha(req), root, sha(MODEL.encode()), len(passages)))
             r = urllib.request.Request("https://openrouter.ai/api/v1/chat/completions", req,
                                        {"Authorization": "Bearer " + self.or_key, "Content-Type": "application/json"})
             with urllib.request.urlopen(r, timeout=120) as resp:
                 raw = resp.read()
             rts = now_iso()
-            while self.w3.eth.block_number <= c["block"]:
-                time.sleep(0.3)
-            f = self._send(self.ilog.functions.finalize(aid, sha(raw)))
-        content = json.loads(raw)["choices"][0]["message"]["content"]
-        try:
-            mj = json.loads(re.search(r"\{.*\}", content, re.S).group(0))
-        except Exception:  # noqa: BLE001
-            mj = {"answer": content, "citations": []}
-        byid = {p["id"]: p for p in passages}
-        cites = []
-        for pid in mj.get("citations", []):
-            if pid not in byid:
-                continue
-            p = byid[pid]
-            ex, _cid, _u, registrant, ts = self.sreg.functions.getSource(p["content_hash"]).call()
-            reg = self.tx_index.get(p["content_hash"], {})
-            cites.append(dict(id=pid, text=p["text"], content_hash=p["content_hash"], cid=vc.cid_v1_raw(bytes.fromhex(p["content_hash"][2:])),
-                              registrant=registrant, registered_at_unix=ts, registration_tx=reg.get("tx"), block_number=reg.get("block"),
-                              explorer=dict(tx=f"{EXPLORER}/tx/{reg.get('tx')}", registrant=f"{EXPLORER}/address/{registrant}",
-                                            contract=f"{EXPLORER}/address/{SOURCE_REGISTRY}")))
-        bundle = dict(
-            question=question, answer=mj.get("answer"), filter="verified-only", chain_id=CHAIN_ID, rpc=self.rpc_url,
-            contract=SOURCE_REGISTRY, citations=cites,
-            inference=dict(log_contract=INFERENCE_LOG, answer_id=hx(aid), question_key=qkey, question_id=hx(qid), model=MODEL,
-                           client_request_ts=cts, client_response_received_ts=rts,
-                           serialization='json.dumps(body, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")',
-                           request_body=req.decode("utf-8"), request_hash=hx(sha(req)),
-                           passages=[dict(id=p["id"], content_hash=p["content_hash"]) for p in passages], passages_root=hx(root),
-                           response_body_b64=base64.b64encode(raw).decode(), response_hash=hx(sha(raw)),
-                           provider_generation_id=json.loads(raw).get("id"), provider_model=json.loads(raw).get("model"), provider=json.loads(raw).get("provider"),
-                           commit_tx=c["tx"], commit_block=c["block"], finalize_tx=f["tx"], finalize_block=f["block"],
-                           explorer=dict(commit=f"{EXPLORER}/tx/{c['tx']}", finalize=f"{EXPLORER}/tx/{f['tx']}",
-                                         log_contract=f"{EXPLORER}/address/{INFERENCE_LOG}")),
-            retrieval=dict(corpus_registry=cv["registry"], corpus_version=cv["version"], corpus_root=cv["root"],
-                           leaf_count=cv["leaf_count"], config_hash=cv["config_hash"], config_json=self.config_raw.decode("utf-8"),
-                           corpus_uri=cv["uri"], publish_tx=cv["publish_tx"], query=question,
-                           ranked_json=ranked_json.decode("utf-8"), ranked_hash=hx(sha(ranked_json)),
-                           proofs=[self.proof(x["id"]) for x in ranked],
-                           explorer=dict(registry=f"{EXPLORER}/address/{cv['registry']}", publish=f"{EXPLORER}/tx/{cv['publish_tx']}")),
-            how_to_verify="python verify_citations.py <this file>")
+            content = json.loads(raw)["choices"][0]["message"]["content"]
+            try:
+                mj = json.loads(re.search(r"\{.*\}", content, re.S).group(0))
+            except Exception:  # noqa: BLE001
+                mj = {"answer": content, "citations": []}
+            byid = {p["id"]: p for p in passages}
+            cites = []
+            for pid in mj.get("citations", []):
+                if pid not in byid:
+                    continue
+                p = byid[pid]
+                ex, _cid, _u, registrant, ts = self.sreg.functions.getSource(p["content_hash"]).call()
+                reg = self.tx_index.get(p["content_hash"], {})
+                cites.append(dict(id=pid, text=p["text"], content_hash=p["content_hash"], cid=vc.cid_v1_raw(bytes.fromhex(p["content_hash"][2:])),
+                                  registrant=registrant, registered_at_unix=ts, registration_tx=reg.get("tx"), block_number=reg.get("block"),
+                                  explorer=dict(tx=f"{EXPLORER}/tx/{reg.get('tx')}", registrant=f"{EXPLORER}/address/{registrant}",
+                                                contract=f"{EXPLORER}/address/{SOURCE_REGISTRY}")))
+            rj = json.loads(raw)
+            bundle = dict(
+                question=question, answer=mj.get("answer"), filter="verified-only", chain_id=CHAIN_ID, rpc=self.rpc_url,
+                contract=SOURCE_REGISTRY, citations=cites,
+                inference=dict(model=MODEL, nonce=nonce, anchor_block=anchor, retrieval_done_ts=rts0,
+                               client_request_ts=cts, client_response_received_ts=rts,
+                               serialization='json.dumps(body, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")',
+                               request_body=req.decode("utf-8"), request_hash=hx(sha(req)),
+                               passages=[dict(id=p["id"], content_hash=p["content_hash"]) for p in passages],
+                               response_body_b64=base64.b64encode(raw).decode(), response_hash=hx(sha(raw)),
+                               provider_generation_id=rj.get("id"), provider_model=rj.get("model"), provider=rj.get("provider")),
+                retrieval=dict(corpus_registry=cv["registry"], corpus_version=cv["version"], corpus_root=cv["root"],
+                               leaf_count=cv["leaf_count"], config_hash=cv["config_hash"], config_json=self.config_raw.decode("utf-8"),
+                               corpus_uri=cv["uri"], publish_tx=cv["publish_tx"], query=question,
+                               ranked_json=ranked_json.decode("utf-8"), ranked_hash=hx(sha(ranked_json)),
+                               proofs=[self.proof(x["id"]) for x in ranked],
+                               explorer=dict(registry=f"{EXPLORER}/address/{cv['registry']}", publish=f"{EXPLORER}/tx/{cv['publish_tx']}")),
+                how_to_verify="python verify_citations.py <this file>")
+            leaves = vc.answer_leaf_values(bundle)
+            root = vc.answer_root_of(leaves)
+            rec = self._send(self.areg.functions.record(bytes.fromhex(root[2:])))  # the ONE on-chain write per answer
+        bundle["answer_root"] = dict(
+            registry=ANSWER_REGISTRY, root=root,
+            scheme="leaf = sha256(0x00 || sha256(label || 0x00 || value)); node = sha256(0x01 || l || r); odd node promoted",
+            leaves=[dict(label=k, value=v) for k, v in leaves], recorder=self.acct.address,
+            record_tx=rec["tx"], record_block=rec["block"],
+            explorer=dict(tx=f"{EXPLORER}/tx/{rec['tx']}", registry=f"{EXPLORER}/address/{ANSWER_REGISTRY}"))
         stats = dict(pool=len(pool), verified_in_pool=sum(ok), unverified_filtered=len(pool) - sum(ok),
                      fakes_in_pool=sum(text_of.get(h, {}).get("kind") == "fake" for h in pool),
                      fakes_in_unfiltered_top5=sum(text_of.get(h, {}).get("kind") == "fake" for h in unfiltered_top),
                      onchain_check_ms=round(chk_ms), total_ms=round((time.perf_counter() - t0) * 1000),
-                     gas_usdc=round(c["usdc"] + f["usdc"], 6), is_sample=bool(sample), gold=sample["gold"] if sample else None)
+                     gas_usdc=round(rec["usdc"], 6), is_sample=bool(sample), gold=sample["gold"] if sample else None)
         return dict(bundle=bundle, stats=stats, passages=passages)

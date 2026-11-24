@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<link rel="icon" href="data:,">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Verify an answer bundle · Arc testnet</title>
 <!-- Fonts: Atkinson Hyperlegible Next and Mono (SIL Open Font License 1.1), embedded. Standalone verifier. Everything below is inlined; the only network requests go to https://rpc.testnet.arc.io and, for the retrieval replay, the committed corpus/model files on https://raw.githubusercontent.com (sha256-checked) -->
@@ -106,6 +107,22 @@ h1{font:700 21px/1.15 var(--sans);letter-spacing:-.01em;margin:0;color:var(--ink
 .why.okk{color:var(--cobalt)}
 .why svg{flex:none}
 .how{font-size:13px;line-height:1.5;color:var(--muted);margin-top:6px;font-variant-numeric:tabular-nums}
+.root:empty{display:none}
+.root{margin-top:8px;display:grid;gap:4px;max-width:100%}
+.root .rh{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;font-size:13px}
+.root .rh .k{color:var(--muted)}
+.root .rh code{font:400 13px var(--mono);color:var(--ink);word-break:break-all}
+.root .rh.bad,.root .rh.bad code{color:var(--void)}
+.root .rh a{color:var(--cobalt);font-size:13px;white-space:nowrap}
+.root .win{font-size:13px;color:var(--ink);font-variant-numeric:tabular-nums}
+.root .win.bad{color:var(--void)}
+.lv{display:grid;grid-template-columns:max-content 1fr max-content;gap:1px 14px;font:400 13px/1.6 var(--sans);color:var(--muted);background:var(--paper);border-radius:var(--r-ctl);padding:8px 12px;margin-bottom:6px}
+.lv .v{font-family:var(--mono);color:var(--text);word-break:break-all;min-width:0}
+.lv .me{color:var(--ink)}
+.lv span.me:not(.v){font-weight:700}
+.lv .ok{color:var(--cobalt)}
+.lv .bad{color:var(--void);font-weight:600}
+.lv sup,.more sup{font-size:10px}
 .hint{font-size:13px;line-height:1.5;color:var(--ink);margin-top:2px}
 .hint:empty{display:none}
 .tag{font:500 12px var(--sans);color:var(--void);background:var(--void-wash);border-radius:4px;padding:1px 8px;line-height:20px}
@@ -363,6 +380,7 @@ h1{font:700 21px/1.15 var(--sans);letter-spacing:-.01em;margin:0;color:var(--ink
     "commit(bytes32,bytes32,bytes32,bytes32,bytes32,uint16)": "", "finalize(bytes32,bytes32)": "",
     "corpusInfo(uint256)": "(bytes32,bytes32,uint32,address,uint64,uint64)", "corpusUri(uint256)": "(string)",
     "isPublisher(address)": "(bool)", "areVerified(bytes32[])": "(bool[])",
+    "recordOf(bytes32)": "(address,uint64,uint64)", "isRecorder(address)": "(bool)", "record(bytes32)": "",
   };
   const SEL = {}; for (const s in SIGS) SEL[s] = keccakHex(s).slice(0, 8);
   const SEL2SIG = {}; for (const s in SEL) SEL2SIG[SEL[s]] = s;
@@ -370,6 +388,7 @@ h1{font:700 21px/1.15 var(--sans);letter-spacing:-.01em;margin:0;color:var(--ink
     BATCH: "BatchRegistered(address,uint256,uint256,uint256)", SINGLE: "SourceRegistered(bytes32,string,address,uint256)",
     COMMITTED: "Committed(bytes32,bytes32,bytes32,bytes32,bytes32,uint16,address,uint256)", FINALIZED: "Finalized(bytes32,bytes32,address,uint256)",
     PUBLISHED: "CorpusPublished(uint256,bytes32,bytes32,uint32,string,address)",
+    RECORDED: "AnswerRecorded(bytes32,address,uint256,uint256)",
   };
   const TOPIC = {}; for (const k in EVENTS) TOPIC[k] = "0x" + keccakHex(EVENTS[k]);
 
@@ -448,6 +467,40 @@ h1{font:700 21px/1.15 var(--sans);letter-spacing:-.01em;margin:0;color:var(--ink
     if (!m) throw new Error(`time data '${s}' does not match format`);
     return Date.UTC(+m[1], m[2] - 1, +m[3], +m[4], +m[5], +m[6]) / 1000 + Number("0." + m[7]);
   }
+
+  // ---------- single answer root: fixed, ordered, labeled leaves (same tree as the corpus) ----------
+  //   x = sha256(label || 0x00 || value), leaf = sha256(0x00 || x), node = sha256(0x01 || l || r), odd node promoted
+  const ANSWER_LEAVES = ["corpus_root", "retrieval_config", "anchor_block", "question", "ranked", "t_retrieval", "request",
+    "t_request", "model", "served_model", "provider", "response", "t_response", "answer"];
+  const SELF_REPORTED = new Set(["t_retrieval", "t_request", "t_response"]);
+  // which diagram node each leaf belongs to (UI only)
+  const LEAF_TAG = { corpus_root: "corpus", retrieval_config: "corpus", ranked: "corpus", t_retrieval: "corpus", anchor_block: "net", question: "net",
+    request: "prompt", t_request: "prompt", model: "model", served_model: "model", provider: "model", response: "answer", t_response: "answer", answer: "answer" };
+  const leafX = (label, value) => sha256(concat([enc.encode(label), new Uint8Array([0]), enc.encode(value)]));
+  async function answerRootOf(pairs) {
+    if (!pairs.length) return "0x" + "00".repeat(32);
+    const xs = []; for (const [k, v] of pairs) xs.push(await leafX(k, v));
+    return G.ArcReplay.merkleRoot(xs);
+  }
+  async function answerLeafValues(b) {
+    const R = b.retrieval || {}, I = b.inference || {};
+    let resp; try { resp = b64bytes(I.response_body_b64 || ""); } catch (e) { resp = new Uint8Array(0); }
+    const sm = servedModel(resp), ab = I.anchor_block || {};
+    const cl = []; for (const c of b.citations || []) cl.push([nn(c.id), await shaStr(c.text || "")]);
+    const ans = canonical({ answer: nn(b.answer), citations: cl });
+    const v = { corpus_root: (R.corpus_root || "").toLowerCase(), retrieval_config: (R.config_hash || "").toLowerCase(),
+      anchor_block: `${py(ab.number)}:${(ab.hash || "").toLowerCase()}`, question: b.question || "",
+      ranked: await shaStr(R.ranked_json || ""), t_retrieval: I.retrieval_done_ts || "", request: await shaStr(I.request_body || ""),
+      t_request: I.client_request_ts || "", model: I.model || "", served_model: sm.served || "", provider: sm.provider || "",
+      response: await sha256(resp), t_response: I.client_response_received_ts || "", answer: await shaStr(ans) };
+    return ANSWER_LEAVES.map((k) => [k, String(v[k])]);
+  }
+  function isoMs(s) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})\.(\d{1,6})Z$/.exec(s || "");
+    if (!m) throw new Error(`time data ${pyRepr(s)} does not match format`);
+    return Date.UTC(+m[1], m[2] - 1, +m[3], +m[4], +m[5], +m[6]) + Number(m[7].slice(0, 3).padEnd(3, "0"));
+  }
+  const cut = (v) => (v.length <= 20 ? v : v.slice(0, 18) + "...");
 
   // ---------- cast / explorer helpers ----------
   function castFor(method, params, rpc) {
@@ -553,7 +606,77 @@ h1{font:700 21px/1.15 var(--sans);letter-spacing:-.01em;margin:0;color:var(--ink
 
     // model call
     const inf = b.inference ? await verifyInference() : [];
+    async function verifyAnswer() {
+      const A = b.answer_root, I = b.inference, out = [], reg = A.registry, claimed = A.root.toLowerCase();
+      const chk = (check, ok, detail = "", t) => { out.push({ check, ok: !!ok, detail, tag: t || tag }); return !!ok; };
+      tag = "record";
+      if (!chk("A1 AnswerRegistry has code", !["0x", "0x0"].includes(await rpc("eth_getCode", [reg, "latest"])), reg)) return out;
+      const rec = await call(reg, "recordOf(bytes32)", claimed.slice(2));
+      const recorder = asAddr(word(rec, 0)), rb = Number(asInt(word(rec, 1))), rt = Number(asInt(word(rec, 2)));
+      if (!chk("A1 answer root is recorded on Arc", BigInt(recorder) !== 0n, `${claimed.slice(0, 18)}... in block ${rb}`)) return out;
+      chk("A1 recorded by an authorized recorder", asInt(await call(reg, "isRecorder(address)", padAddr(recorder))) === 1n
+        && (A.recorder || recorder).toLowerCase() === recorder.toLowerCase(), `recorder ${recorder}`);
+      const rc = await rpc("eth_getTransactionReceipt", [A.record_tx ?? null]);
+      chk("A1 record tx emitted AnswerRecorded(root) in that block", !!rc && parseInt(rc.status, 16) === 1 && parseInt(rc.blockNumber, 16) === rb
+        && rc.logs.some((l) => l.address.toLowerCase() === reg.toLowerCase() && l.topics[0] === TOPIC.RECORDED && l.topics[1] === claimed), py(A.record_tx));
+      const stored = (A.leaves || []).map((x) => [py(x.label), py(x.value)]);
+      const sroot = await answerRootOf(stored);
+      chk("A1 the bundle's labeled leaves hash to the recorded root",
+        JSON.stringify(stored.map(([k]) => k)) === JSON.stringify(ANSWER_LEAVES) && sroot === claimed, `${stored.length} leaves in fixed order`);
+      const committed = Object.fromEntries(stored), mine = await answerLeafValues(b);
+      for (const [k, v] of mine) { const c = committed[k] ?? "";
+        chk(`A2 ${k} leaf == value recomputed from the bundle`, v === c, v === c ? (SELF_REPORTED.has(k) ? "self-reported" : "") : `recomputed ${cut(v)}, committed ${cut(c)}`, LEAF_TAG[k]); }
+      const mroot = await answerRootOf(mine), diff = mine.filter(([k, v]) => v !== (committed[k] ?? "")).map(([k]) => k);
+      cmp("answer root recomputed from your bundle vs recorded on Arc", mroot, claimed, { cmd: `cast call ${reg} "recordOf(bytes32)(address,uint64,uint64)" ${claimed} --rpc-url ${rpcUrl}` });
+      chk("A2 root recomputed from the bundle == recorded root", mroot === claimed, `recomputed ${mroot.slice(0, 18)}...` + (diff.length ? `; changed: ${diff.join(", ")}` : ""), "root");
+      const ab = I.anchor_block || {}, n = parseInt(ab.number || 0);
+      tag = "prompt";
+      const blk = await rpc("eth_getBlockByNumber", ["0x" + n.toString(16), false]);
+      const at = blk ? parseInt(blk.timestamp, 16) : 0, aOk = !!blk && blk.hash.toLowerCase() === (ab.hash || "").toLowerCase();
+      chk("A3 anchor block hash matches Arc (request not built before it)", aOk, `block ${n} at unix ${at}`);
+      chk("A3 anchor block is before the record block", aOk && n < rb, `between block ${n} and block ${rb} (${rt - at} s)`);
+      let times = null;
+      try { const [tr, tq, ts] = ["retrieval_done_ts", "client_request_ts", "client_response_received_ts"].map((k) => isoMs(I[k] || ""));
+        times = [tr, tq, ts];
+        chk("A3 self-reported step times are in order and inside the window", at * 1000 - 2000 <= tr && tr <= tq && tq <= ts && ts <= rt * 1000 + 5000,
+          `retrieval +${tr - at * 1000} ms, prompt +${tq - at * 1000} ms, response +${ts - at * 1000} ms after block ${n} (self-reported)`);
+      } catch (e) { chk("A3 step timestamps parse", false, String(e.message || e)); }
+      ev("root", { kind: "root", root: claimed, recomputed: mroot, registry: reg, recorder, tx: A.record_tx, leaves: mine.map(([k, v]) => ({ label: k, value: v,
+        committed: committed[k] ?? "", ok: v === (committed[k] ?? ""), tag: LEAF_TAG[k], self: SELF_REPORTED.has(k) })),
+        window: { from: n, to: rb, secs: rt - at, ok: aOk && n < rb }, times });
+
+      let body; try { body = JSON.parse(I.request_body || ""); } catch (e) { chk("M2 request body is JSON", false, String(e)); return out; }
+      chk("M2 request bytes are canonical JSON", canonical(body) === (I.request_body || ""));
+      const msgs = body.messages || [], sysmsg = (msgs.find((m) => m.role === "system") || {}).content || "", user = (msgs.find((m) => m.role === "user") || {}).content || "";
+      chk("M2 model in request == bundle model", body.model === I.model, py(body.model));
+      chk("M2 nonce, client_ts and anchor block are inside the hashed request", sysmsg.includes(`nonce=${py(I.nonce)}`) && sysmsg.includes(`client_ts=${py(I.client_request_ts)}`)
+        && sysmsg.includes(`arc_block=${py(ab.number)}:${(ab.hash || "").toLowerCase()}`));
+      chk("M2 question text in request == bundle question", user.trimEnd().endsWith("Question: " + (b.question ?? "")));
+      const segs = [...user.matchAll(PASSAGE_RE)].map((m) => [m[1], m[2]]);
+      const promptHashes = []; for (const [pid, t] of segs) promptHashes.push([pid, await shaStr(t)]);
+      const listed = (I.passages || []).map((p) => [p.id, p.content_hash.toLowerCase()]);
+      chk("M3 passages parsed from committed prompt == bundle passage list", JSON.stringify(promptHashes) === JSON.stringify(listed), `${promptHashes.length} in prompt, ${listed.length} listed`);
+      for (let i = 0; i < (b.citations || []).length; i++) {
+        const c = b.citations[i], th = await shaStr(c.text ?? "");
+        const inprompt = user.includes(`[${c.id}] ${c.text ?? ""}`), inlist = promptHashes.some(([p, h]) => p === c.id && h === th);
+        chk(`M3 cited ${c.id} text is verbatim in the committed prompt under that id`, inprompt && inlist, inprompt && inlist ? "" : "this passage was NOT in the prompt sent to the model", "src:" + i);
+      }
+      const resp = b64bytes(I.response_body_b64 || ""), sm = servedModel(resp), [match, kind] = modelMatch(I.model || "", sm.served || "");
+      tag = "model";
+      ev("model", { kind: "fact", label: "served model (inside the response hashed into the root)", value: `${py(sm.served)} · provider ${py(sm.provider)}`, ok: match, note: `requested ${I.model} · ${kind} · self-reported by the provider` });
+      chk("M6 served model (from the hashed response) matches the requested model", match, `requested ${py(I.model)} -> served ${py(sm.served)} (${kind}) · provider ${py(sm.provider)} (self-reported)`);
+      tag = "answer";
+      let mj;
+      try { const content = JSON.parse(new TextDecoder().decode(resp)).choices[0].message.content;
+        const m = /\{[\s\S]*\}/.exec(content); if (!m) throw new Error("no JSON object in content"); mj = JSON.parse(m[0]);
+      } catch (e) { chk("M4 response parses", false, String(e)); return out; }
+      chk("M4 bundle answer == answer in the logged response", deq(mj.answer, b.answer), `response says ${pyRepr(mj.answer)}, bundle says ${pyRepr(b.answer)}`);
+      const bc = (b.citations || []).map((c) => c.id), mc = Array.isArray(mj.citations) ? mj.citations : [];
+      chk("M4 bundle citation ids == citation ids in the logged response", JSON.stringify(bc) === JSON.stringify(mc), `response cites ${pyRepr(mj.citations)}, bundle cites ${pyRepr(bc)}`);
+      return out;
+    }
     async function verifyInference() {
+      if (b.answer_root) return verifyAnswer();
       const I = b.inference, out = [], log = I.log_contract, aid = I.answer_id.toLowerCase();
       const chk = (check, ok, detail = "", t) => { out.push({ check, ok: !!ok, detail, tag: t || tag }); return !!ok; };
       tag = "record";
@@ -754,7 +877,7 @@ h1{font:700 21px/1.15 var(--sans);letter-spacing:-.01em;margin:0;color:var(--ink
     return t;
   }
 
-  G.ArcVerify = { tamper, verifyBundle, cidV1Raw, canonical, modelMatch, servedModel, SEL, TOPIC, RPC_URL, EXPLORER, CHAIN_ID };
+  G.ArcVerify = { tamper, verifyBundle, answerLeafValues, answerRootOf, ANSWER_LEAVES, LEAF_TAG, cidV1Raw, canonical, modelMatch, servedModel, SEL, TOPIC, RPC_URL, EXPLORER, CHAIN_ID };
 })(globalThis);
 
 </script>
@@ -806,7 +929,7 @@ h1{font:700 21px/1.15 var(--sans);letter-spacing:-.01em;margin:0;color:var(--ink
       body.querySelector(".ptx").innerHTML = on ? `<div class="ptext">${esc(b.citations[+el.dataset.i].text)}</div>` : ""; }));
     const dl = body.querySelector("[data-a=dl]");
     if (dl) dl.onclick = () => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(b, null, 1)], { type: "application/json" }));
-      a.download = `bundle_${(b.inference ? b.inference.answer_id.slice(2, 12) : "answer")}.json`; a.click(); };
+      a.download = `bundle_${(b.answer_root ? b.answer_root.root.slice(2, 12) : b.inference ? b.inference.answer_id.slice(2, 12) : "answer")}.json`; a.click(); };
     body.querySelector("[data-a=verify]").onclick = () => verify(body, b, false);
     const tb = body.querySelector("[data-a=tamper]");
     if (tb) tb.onclick = () => body.querySelector(".menu").classList.toggle("on");
@@ -822,15 +945,22 @@ h1{font:700 21px/1.15 var(--sans);letter-spacing:-.01em;margin:0;color:var(--ink
     return (rs && rs[0]) || "source check failed"; }
   const allOk = (a) => a.every((x) => x.ok);
   const firstBad = (a) => (a.find((x) => !x.ok) || {}).check || "";
-  const strip = (s) => s.replace(/^[MC]\d /, "");
+  const strip = (s) => s.replace(/^[MCA]\d /, "");
+  // single-root bundles: a node whose leaf no longer matches says so (leaf names in plain words)
+  const LEAF_WORD = { corpus_root: "corpus root", retrieval_config: "retrieval config", anchor_block: "anchor block", question: "question", ranked: "ranking",
+    t_retrieval: "retrieval time", request: "prompt", t_request: "prompt time", model: "requested model", served_model: "served model", provider: "provider",
+    response: "response", t_response: "response time", answer: "answer" };
+  const leafWhy = (cs) => { const ls = cs.filter((x) => /^A2 \w+ leaf/.test(x.check) && x.ok === false).map((x) => LEAF_WORD[x.check.split(" ")[1]]);
+    return ls.length ? `${ls.join(", ")} changed: no longer matches the answer root on Arc` : ""; };
   function build(b, v) {
     const mc = v ? v.model_call : [], tagged = (t) => mc.filter((x) => x.tag === t), inf = b.inference;
     const rec = tagged("record"), recOk = allOk(rec);
     const headOk = v ? allOk(v.header) : true;
     const cols = [];
-    if (b.retrieval) { const cc = v ? v.corpus || [] : [], R = b.retrieval, f = (re) => cc.find((x) => re.test(x.check) && x.ok === false);
+    if (b.retrieval) { const cc = v ? (v.corpus || []).concat(tagged("corpus")) : [], R = b.retrieval, f = (re) => cc.find((x) => re.test(x.check) && x.ok === false);
       const skipped = cc.some((x) => x.ok === null), rp = f(/^C5 replaying/);
-      const why = rp ? (/omits/.test(rp.detail) ? "corpus: replaying retrieval finds a document the answer's ranking left out" : "corpus: replaying retrieval gives a different ranking")
+      const lw = leafWhy(cc);
+      const why = lw ? "corpus: " + lw : rp ? (/omits/.test(rp.detail) ? "corpus: replaying retrieval finds a document the answer's ranking left out" : "corpus: replaying retrieval gives a different ranking")
         : f(/^C3 every ranked/) ? "corpus: a candidate is not in the committed corpus"
         : f(/^C4/) ? "corpus: a trusted candidate was skipped when building the prompt"
         : f(/^C2 corpus/) ? "corpus: the ranking differs from the one committed before the model call"
@@ -838,7 +968,8 @@ h1{font:700 21px/1.15 var(--sans);letter-spacing:-.01em;margin:0;color:var(--ink
         : "corpus: " + strip(firstBad(cc));
       cols.push([{ k: "c", lbl: "Corpus", sub: `${Number(R.leaf_count).toLocaleString("en-US")} passages`, tags: ["corpus"], checks: cc,
         ok: v ? cc.length > 0 && cc.every((x) => x.ok !== false) : true, why, skipped }]); }
-    cols.push([{ k: "q", lbl: "Question", sub: "Arc testnet", tags: ["net"], checks: v ? v.header : [], ok: headOk, why: "network: " + firstBad(v ? v.header : []) }]);
+    const qc = v ? v.header.concat(tagged("net")) : [];
+    cols.push([{ k: "q", lbl: "Question", sub: "Arc testnet", tags: ["net"], checks: qc, ok: v ? allOk(qc) : true, why: leafWhy(qc) ? "question: " + leafWhy(qc) : "network: " + firstBad(qc) }]);
     const srcs = (b.citations || []).map((c, i) => { const r = v && v.citations[i], m3 = tagged("src:" + i);
       const ok = r ? r.status === "PASS" && allOk(m3) : true;
       const checks = r ? (r.status === "PASS" ? (r.notes || []).map((n) => ({ check: n, ok: true })) : r.reasons.map((x) => ({ check: x, ok: false }))).concat(m3) : [];
@@ -847,13 +978,14 @@ h1{font:700 21px/1.15 var(--sans);letter-spacing:-.01em;margin:0;color:var(--ink
     cols.push(srcs.length ? srcs : [{ k: "s", lbl: "Sources", sub: "none cited", tags: [], checks: [], ok: true }]);
     if (inf) {
       const nodeOk = (cs) => (v ? cs.length > 0 && allOk(cs) && recOk : true);
-      const pc = rec.concat(tagged("prompt")), mcK = tagged("model"), ac = tagged("answer"), md = v && v.model;
-      cols.push([{ k: "p", lbl: "Prompt", sub: "block " + inf.commit_block, tags: ["record", "prompt"], checks: pc, ok: nodeOk(pc),
-        why: !recOk ? "log record: " + strip(firstBad(rec)) : mc.some((x) => /^M2 sha256/.test(x.check) && !x.ok) ? "prompt: bytes differ from the hash committed on-chain" : "prompt: " + strip(firstBad(pc)) }]);
+      const pc = rec.concat(tagged("prompt")), mcK = tagged("model"), ac = tagged("answer"), md = v && v.model, AR = b.answer_root;
+      const lwP = leafWhy(pc), lwM = leafWhy(mcK), lwA = leafWhy(ac);
+      cols.push([{ k: "p", lbl: "Prompt", sub: AR ? "after block " + inf.anchor_block.number : "block " + inf.commit_block, tags: ["record", "prompt"], checks: pc, ok: nodeOk(pc),
+        why: !recOk ? (AR ? "answer root: " : "log record: ") + strip(firstBad(rec)) : lwP ? "prompt: " + lwP : mc.some((x) => /^M2 sha256/.test(x.check) && !x.ok) ? "prompt: bytes differ from the hash committed on-chain" : "prompt: " + strip(firstBad(pc)) }]);
       cols.push([{ k: "m", lbl: bare(inf.model), wide: 1, sub: md ? `served by ${md.provider || "unknown"}` : "requested", tags: ["model"], rec: 1, checks: mcK, ok: nodeOk(mcK),
-        why: "model: " + (md && !md.match ? `requested ${bare(md.requested)}, served ${bare(md.served)}` : mc.some((x) => /^M4 sha256/.test(x.check) && !x.ok) ? "response bytes don't match the on-chain hash" : "differs from the model committed on-chain") }]);
-      cols.push([{ k: "a", lbl: "Answer", sub: "block " + inf.finalize_block, tags: ["answer"], rec: 1, checks: ac, ok: nodeOk(ac),
-        why: "answer: " + (ac.some((x) => /^M4 bundle answer/.test(x.check) && !x.ok) ? "differs from the response logged on-chain" : ac.some((x) => /^M4 sha256/.test(x.check) && !x.ok) ? "response bytes don't match the on-chain hash" : strip(firstBad(ac))) }]);
+        why: "model: " + (lwM && !(md && !md.match) ? lwM : md && !md.match ? `requested ${bare(md.requested)}, served ${bare(md.served)}` : mc.some((x) => /^M4 sha256/.test(x.check) && !x.ok) ? "response bytes don't match the on-chain hash" : "differs from the model committed on-chain") }]);
+      cols.push([{ k: "a", lbl: "Answer", sub: "block " + (AR ? AR.record_block : inf.finalize_block), tags: ["answer"], rec: 1, checks: ac, ok: nodeOk(ac),
+        why: "answer: " + (lwA ? lwA : ac.some((x) => /^M4 bundle answer/.test(x.check) && !x.ok) ? "differs from the response logged on-chain" : ac.some((x) => /^M4 sha256/.test(x.check) && !x.ok) ? "response bytes don't match the on-chain hash" : strip(firstBad(ac))) }]);
     }
     return cols;
   }
@@ -869,8 +1001,10 @@ h1{font:700 21px/1.15 var(--sans);letter-spacing:-.01em;margin:0;color:var(--ink
   const cmdRow = (cmd) => `<div class="cmdline"><code>${esc(cmd)}</code>${copyBtn(cmd)}</div>`;
   function evidenceHTML(n, v) {
     const ev = v.evidence || {}, items = [].concat(...n.tags.map((t) => ev[t] || []));
-    if (n.rec) items.unshift(...(ev.record || []).filter((x) => x.kind === "rpc" && /213681cd/.test(JSON.stringify(x.req.params))));
+    if (n.rec) items.unshift(...(ev.record || []).filter((x) => x.kind === "rpc" && /213681cd|d1c60a3a/.test(JSON.stringify(x.req.params))));
     let h = "";
+    const rt = (ev.root || [])[0];
+    if (rt) h += rootHTML(rt, n);
     if (n.checks.length) h += `<h4>Checks</h4>` + n.checks.map((c) => `<div class="ck ${c.ok === null ? "skip" : c.ok ? "ok" : "bad"}"><i></i><span>${esc(disp(strip(c.check)))}${c.detail && (!c.ok || /^M6|^C[1345]/.test(c.check)) ? `<span class="d">${esc(disp(c.detail))}</span>` : ""}</span></div>`).join("");
     if (n.k === "c") h += corpusHTML(items, n);
     const cmps = items.filter((x) => x.kind === "cmp" || x.kind === "fact");
@@ -891,6 +1025,16 @@ h1{font:700 21px/1.15 var(--sans);letter-spacing:-.01em;margin:0;color:var(--ink
         ${x.href ? `<span class="k">explorer</span><span><a target="_blank" rel="noopener" href="${esc(x.href)}">${esc(x.href.replace(/^https:\/\//, "").replace(/(0x[0-9a-fA-F]{8})[0-9a-fA-F]{24,}/, "$1…"))} ↗</a></span>` : ""}</div></details>`; }).join("") + `</div>`;
     return h;
   }
+
+  // ---------- answer root: the leaves and that they hash to the one on-chain value ----------
+  function rootHTML(r, n) {
+    const mineTags = n.tags.concat(n.k === "c" ? ["corpus"] : []), same = r.recomputed === r.root;
+    return `<h4>Answer root <small>${r.leaves.length} leaves, hashed in your browser</small></h4><div class="ev"><div class="lv">` +
+      r.leaves.map((x) => `<span class="${mineTags.includes(x.tag) ? "me" : ""}">${esc(x.label)}${x.self ? "<sup>*</sup>" : ""}</span><span class="v ${mineTags.includes(x.tag) ? "me" : ""}">${esc(short2(x.value))}</span><span class="${x.ok ? "ok" : "bad"}">${x.ok ? "≡" : "≠ changed"}</span>`).join("") +
+      `</div><div class="kv"><span class="k">recomputed</span><span class="v">${hexSpans(r.recomputed, r.root)}</span><span class="k">on Arc</span><span class="v">${hexSpans(r.root, r.recomputed)}</span></div>
+      <div class="more">${same ? "≡ identical" : "≠ differs"} · <sup>*</sup> self-reported time</div></div>`;
+  }
+  const short2 = (v) => { v = String(v); return /^0x[0-9a-f]{64}$/.test(v) ? v.slice(0, 10) + "…" + v.slice(-4) : /^\d+:0x[0-9a-f]{64}$/.test(v) ? v.replace(/:(0x[0-9a-f]{6})[0-9a-f]+$/, ":$1…") : v.length > 34 ? v.slice(0, 32) + "…" : v; };
 
   // ---------- corpus evidence: proof path + replay ----------
   const short = (h) => esc(String(h).slice(0, 10)) + "…" + esc(String(h).slice(-4));
@@ -925,7 +1069,7 @@ h1{font:700 21px/1.15 var(--sans);letter-spacing:-.01em;margin:0;color:var(--ink
     body.querySelector(".ptx").innerHTML = "";
     const vf = body.querySelector(".vf"), cols0 = build(b, null);
     vf.innerHTML = `<div class="flow">${cols0.map((c, i) => (i ? `<div class="link" data-l="${i}"></div>` : "") + `<div class="col${c.length > 1 ? " multi" : ""}" data-c="${i}">${c.map(nodeHTML).join("")}</div>`).join("")}</div>
-      <div class="why"></div><div class="how"></div><div class="hint"></div><div class="det"></div>`;
+      <div class="why"></div><div class="root"></div><div class="how"></div><div class="hint"></div><div class="det"></div>`;
     vf.querySelector(".det").style.display = "none";
     const t0 = performance.now(); let v;
     const how = vf.querySelector(".how");
@@ -957,6 +1101,16 @@ h1{font:700 21px/1.15 var(--sans);letter-spacing:-.01em;margin:0;color:var(--ink
     const why = vf.querySelector(".why");
     if (bad) { why.className = "why"; why.innerHTML = SEAL(false) + `<span>${esc(disp(bad.why))}</span>` + (tampered ? `<span class="tag">tampered ${esc(disp(b._t || "copy"))}</span>` : ""); }
     else { why.className = "why okk"; why.innerHTML = SEAL(true) + `<span>${v.all_pass ? "Verified on Arc" : "Model call verified, but no sources were cited"}</span>`; }
+    const rl = vf.querySelector(".root"), rt = ((v.evidence || {}).root || [])[0];
+    if (b.answer_root && rt) {
+      const R = b.answer_root, X = A().EXPLORER, cast = `cast call ${R.registry} "recordOf(bytes32)(address,uint64,uint64)" ${R.root} --rpc-url ${A().RPC_URL}`;
+      const w = rt.window, nf = (x) => Number(x).toLocaleString("en-US");
+      rl.innerHTML = `<div class="rh"><span class="k">answer root</span><code>${esc(R.root)}</code>${copyBtn(R.root)}<a target="_blank" rel="noopener" href="${esc(X + "/tx/" + R.record_tx)}">explorer ↗</a></div>
+        ${rt.recomputed !== R.root ? `<div class="rh bad"><span class="k">your copy</span><code>${esc(rt.recomputed)}</code><span>≠ root on Arc</span></div>` : ""}
+        <div class="cmdline"><code>${esc(cast)}</code>${copyBtn(cast)}</div>
+        <div class="win ${w.ok ? "" : "bad"}">${w.ok ? `Asked and answered between block ${nf(w.from)} and block ${nf(w.to)} (${w.secs} s).` : `Time window not proven: anchor block ${nf(w.from)} does not check out.`}</div>`;
+      rl.querySelectorAll("[data-copy]").forEach((c) => (c.onclick = (e) => { e.preventDefault(); navigator.clipboard && navigator.clipboard.writeText(c.dataset.copy); c.textContent = "copied"; setTimeout(() => (c.textContent = "copy"), 1200); }));
+    }
     vf.querySelector(".hint").textContent = "Click a node to see the on-chain evidence.";
     G.__lastVerify = v;
     vf.querySelector(".how").textContent = `Checked in your browser, directly against ${new URL(v.rpc).host}: ${v.rpc_calls} RPC calls, ${mine} to our server${b.retrieval ? `; replay files from ${(v.evidence.corpus || []).some((x) => x.kind === "replay" && x.arts) ? "raw.githubusercontent.com, sha256-checked" : "—"}` : ""}.`;

@@ -30,6 +30,7 @@
     "commit(bytes32,bytes32,bytes32,bytes32,bytes32,uint16)": "", "finalize(bytes32,bytes32)": "",
     "corpusInfo(uint256)": "(bytes32,bytes32,uint32,address,uint64,uint64)", "corpusUri(uint256)": "(string)",
     "isPublisher(address)": "(bool)", "areVerified(bytes32[])": "(bool[])",
+    "recordOf(bytes32)": "(address,uint64,uint64)", "isRecorder(address)": "(bool)", "record(bytes32)": "",
   };
   const SEL = {}; for (const s in SIGS) SEL[s] = keccakHex(s).slice(0, 8);
   const SEL2SIG = {}; for (const s in SEL) SEL2SIG[SEL[s]] = s;
@@ -37,6 +38,7 @@
     BATCH: "BatchRegistered(address,uint256,uint256,uint256)", SINGLE: "SourceRegistered(bytes32,string,address,uint256)",
     COMMITTED: "Committed(bytes32,bytes32,bytes32,bytes32,bytes32,uint16,address,uint256)", FINALIZED: "Finalized(bytes32,bytes32,address,uint256)",
     PUBLISHED: "CorpusPublished(uint256,bytes32,bytes32,uint32,string,address)",
+    RECORDED: "AnswerRecorded(bytes32,address,uint256,uint256)",
   };
   const TOPIC = {}; for (const k in EVENTS) TOPIC[k] = "0x" + keccakHex(EVENTS[k]);
 
@@ -115,6 +117,40 @@
     if (!m) throw new Error(`time data '${s}' does not match format`);
     return Date.UTC(+m[1], m[2] - 1, +m[3], +m[4], +m[5], +m[6]) / 1000 + Number("0." + m[7]);
   }
+
+  // ---------- single answer root: fixed, ordered, labeled leaves (same tree as the corpus) ----------
+  //   x = sha256(label || 0x00 || value), leaf = sha256(0x00 || x), node = sha256(0x01 || l || r), odd node promoted
+  const ANSWER_LEAVES = ["corpus_root", "retrieval_config", "anchor_block", "question", "ranked", "t_retrieval", "request",
+    "t_request", "model", "served_model", "provider", "response", "t_response", "answer"];
+  const SELF_REPORTED = new Set(["t_retrieval", "t_request", "t_response"]);
+  // which diagram node each leaf belongs to (UI only)
+  const LEAF_TAG = { corpus_root: "corpus", retrieval_config: "corpus", ranked: "corpus", t_retrieval: "corpus", anchor_block: "net", question: "net",
+    request: "prompt", t_request: "prompt", model: "model", served_model: "model", provider: "model", response: "answer", t_response: "answer", answer: "answer" };
+  const leafX = (label, value) => sha256(concat([enc.encode(label), new Uint8Array([0]), enc.encode(value)]));
+  async function answerRootOf(pairs) {
+    if (!pairs.length) return "0x" + "00".repeat(32);
+    const xs = []; for (const [k, v] of pairs) xs.push(await leafX(k, v));
+    return G.ArcReplay.merkleRoot(xs);
+  }
+  async function answerLeafValues(b) {
+    const R = b.retrieval || {}, I = b.inference || {};
+    let resp; try { resp = b64bytes(I.response_body_b64 || ""); } catch (e) { resp = new Uint8Array(0); }
+    const sm = servedModel(resp), ab = I.anchor_block || {};
+    const cl = []; for (const c of b.citations || []) cl.push([nn(c.id), await shaStr(c.text || "")]);
+    const ans = canonical({ answer: nn(b.answer), citations: cl });
+    const v = { corpus_root: (R.corpus_root || "").toLowerCase(), retrieval_config: (R.config_hash || "").toLowerCase(),
+      anchor_block: `${py(ab.number)}:${(ab.hash || "").toLowerCase()}`, question: b.question || "",
+      ranked: await shaStr(R.ranked_json || ""), t_retrieval: I.retrieval_done_ts || "", request: await shaStr(I.request_body || ""),
+      t_request: I.client_request_ts || "", model: I.model || "", served_model: sm.served || "", provider: sm.provider || "",
+      response: await sha256(resp), t_response: I.client_response_received_ts || "", answer: await shaStr(ans) };
+    return ANSWER_LEAVES.map((k) => [k, String(v[k])]);
+  }
+  function isoMs(s) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})\.(\d{1,6})Z$/.exec(s || "");
+    if (!m) throw new Error(`time data ${pyRepr(s)} does not match format`);
+    return Date.UTC(+m[1], m[2] - 1, +m[3], +m[4], +m[5], +m[6]) + Number(m[7].slice(0, 3).padEnd(3, "0"));
+  }
+  const cut = (v) => (v.length <= 20 ? v : v.slice(0, 18) + "...");
 
   // ---------- cast / explorer helpers ----------
   function castFor(method, params, rpc) {
@@ -220,7 +256,77 @@
 
     // model call
     const inf = b.inference ? await verifyInference() : [];
+    async function verifyAnswer() {
+      const A = b.answer_root, I = b.inference, out = [], reg = A.registry, claimed = A.root.toLowerCase();
+      const chk = (check, ok, detail = "", t) => { out.push({ check, ok: !!ok, detail, tag: t || tag }); return !!ok; };
+      tag = "record";
+      if (!chk("A1 AnswerRegistry has code", !["0x", "0x0"].includes(await rpc("eth_getCode", [reg, "latest"])), reg)) return out;
+      const rec = await call(reg, "recordOf(bytes32)", claimed.slice(2));
+      const recorder = asAddr(word(rec, 0)), rb = Number(asInt(word(rec, 1))), rt = Number(asInt(word(rec, 2)));
+      if (!chk("A1 answer root is recorded on Arc", BigInt(recorder) !== 0n, `${claimed.slice(0, 18)}... in block ${rb}`)) return out;
+      chk("A1 recorded by an authorized recorder", asInt(await call(reg, "isRecorder(address)", padAddr(recorder))) === 1n
+        && (A.recorder || recorder).toLowerCase() === recorder.toLowerCase(), `recorder ${recorder}`);
+      const rc = await rpc("eth_getTransactionReceipt", [A.record_tx ?? null]);
+      chk("A1 record tx emitted AnswerRecorded(root) in that block", !!rc && parseInt(rc.status, 16) === 1 && parseInt(rc.blockNumber, 16) === rb
+        && rc.logs.some((l) => l.address.toLowerCase() === reg.toLowerCase() && l.topics[0] === TOPIC.RECORDED && l.topics[1] === claimed), py(A.record_tx));
+      const stored = (A.leaves || []).map((x) => [py(x.label), py(x.value)]);
+      const sroot = await answerRootOf(stored);
+      chk("A1 the bundle's labeled leaves hash to the recorded root",
+        JSON.stringify(stored.map(([k]) => k)) === JSON.stringify(ANSWER_LEAVES) && sroot === claimed, `${stored.length} leaves in fixed order`);
+      const committed = Object.fromEntries(stored), mine = await answerLeafValues(b);
+      for (const [k, v] of mine) { const c = committed[k] ?? "";
+        chk(`A2 ${k} leaf == value recomputed from the bundle`, v === c, v === c ? (SELF_REPORTED.has(k) ? "self-reported" : "") : `recomputed ${cut(v)}, committed ${cut(c)}`, LEAF_TAG[k]); }
+      const mroot = await answerRootOf(mine), diff = mine.filter(([k, v]) => v !== (committed[k] ?? "")).map(([k]) => k);
+      cmp("answer root recomputed from your bundle vs recorded on Arc", mroot, claimed, { cmd: `cast call ${reg} "recordOf(bytes32)(address,uint64,uint64)" ${claimed} --rpc-url ${rpcUrl}` });
+      chk("A2 root recomputed from the bundle == recorded root", mroot === claimed, `recomputed ${mroot.slice(0, 18)}...` + (diff.length ? `; changed: ${diff.join(", ")}` : ""), "root");
+      const ab = I.anchor_block || {}, n = parseInt(ab.number || 0);
+      tag = "prompt";
+      const blk = await rpc("eth_getBlockByNumber", ["0x" + n.toString(16), false]);
+      const at = blk ? parseInt(blk.timestamp, 16) : 0, aOk = !!blk && blk.hash.toLowerCase() === (ab.hash || "").toLowerCase();
+      chk("A3 anchor block hash matches Arc (request not built before it)", aOk, `block ${n} at unix ${at}`);
+      chk("A3 anchor block is before the record block", aOk && n < rb, `between block ${n} and block ${rb} (${rt - at} s)`);
+      let times = null;
+      try { const [tr, tq, ts] = ["retrieval_done_ts", "client_request_ts", "client_response_received_ts"].map((k) => isoMs(I[k] || ""));
+        times = [tr, tq, ts];
+        chk("A3 self-reported step times are in order and inside the window", at * 1000 - 2000 <= tr && tr <= tq && tq <= ts && ts <= rt * 1000 + 5000,
+          `retrieval +${tr - at * 1000} ms, prompt +${tq - at * 1000} ms, response +${ts - at * 1000} ms after block ${n} (self-reported)`);
+      } catch (e) { chk("A3 step timestamps parse", false, String(e.message || e)); }
+      ev("root", { kind: "root", root: claimed, recomputed: mroot, registry: reg, recorder, tx: A.record_tx, leaves: mine.map(([k, v]) => ({ label: k, value: v,
+        committed: committed[k] ?? "", ok: v === (committed[k] ?? ""), tag: LEAF_TAG[k], self: SELF_REPORTED.has(k) })),
+        window: { from: n, to: rb, secs: rt - at, ok: aOk && n < rb }, times });
+
+      let body; try { body = JSON.parse(I.request_body || ""); } catch (e) { chk("M2 request body is JSON", false, String(e)); return out; }
+      chk("M2 request bytes are canonical JSON", canonical(body) === (I.request_body || ""));
+      const msgs = body.messages || [], sysmsg = (msgs.find((m) => m.role === "system") || {}).content || "", user = (msgs.find((m) => m.role === "user") || {}).content || "";
+      chk("M2 model in request == bundle model", body.model === I.model, py(body.model));
+      chk("M2 nonce, client_ts and anchor block are inside the hashed request", sysmsg.includes(`nonce=${py(I.nonce)}`) && sysmsg.includes(`client_ts=${py(I.client_request_ts)}`)
+        && sysmsg.includes(`arc_block=${py(ab.number)}:${(ab.hash || "").toLowerCase()}`));
+      chk("M2 question text in request == bundle question", user.trimEnd().endsWith("Question: " + (b.question ?? "")));
+      const segs = [...user.matchAll(PASSAGE_RE)].map((m) => [m[1], m[2]]);
+      const promptHashes = []; for (const [pid, t] of segs) promptHashes.push([pid, await shaStr(t)]);
+      const listed = (I.passages || []).map((p) => [p.id, p.content_hash.toLowerCase()]);
+      chk("M3 passages parsed from committed prompt == bundle passage list", JSON.stringify(promptHashes) === JSON.stringify(listed), `${promptHashes.length} in prompt, ${listed.length} listed`);
+      for (let i = 0; i < (b.citations || []).length; i++) {
+        const c = b.citations[i], th = await shaStr(c.text ?? "");
+        const inprompt = user.includes(`[${c.id}] ${c.text ?? ""}`), inlist = promptHashes.some(([p, h]) => p === c.id && h === th);
+        chk(`M3 cited ${c.id} text is verbatim in the committed prompt under that id`, inprompt && inlist, inprompt && inlist ? "" : "this passage was NOT in the prompt sent to the model", "src:" + i);
+      }
+      const resp = b64bytes(I.response_body_b64 || ""), sm = servedModel(resp), [match, kind] = modelMatch(I.model || "", sm.served || "");
+      tag = "model";
+      ev("model", { kind: "fact", label: "served model (inside the response hashed into the root)", value: `${py(sm.served)} · provider ${py(sm.provider)}`, ok: match, note: `requested ${I.model} · ${kind} · self-reported by the provider` });
+      chk("M6 served model (from the hashed response) matches the requested model", match, `requested ${py(I.model)} -> served ${py(sm.served)} (${kind}) · provider ${py(sm.provider)} (self-reported)`);
+      tag = "answer";
+      let mj;
+      try { const content = JSON.parse(new TextDecoder().decode(resp)).choices[0].message.content;
+        const m = /\{[\s\S]*\}/.exec(content); if (!m) throw new Error("no JSON object in content"); mj = JSON.parse(m[0]);
+      } catch (e) { chk("M4 response parses", false, String(e)); return out; }
+      chk("M4 bundle answer == answer in the logged response", deq(mj.answer, b.answer), `response says ${pyRepr(mj.answer)}, bundle says ${pyRepr(b.answer)}`);
+      const bc = (b.citations || []).map((c) => c.id), mc = Array.isArray(mj.citations) ? mj.citations : [];
+      chk("M4 bundle citation ids == citation ids in the logged response", JSON.stringify(bc) === JSON.stringify(mc), `response cites ${pyRepr(mj.citations)}, bundle cites ${pyRepr(bc)}`);
+      return out;
+    }
     async function verifyInference() {
+      if (b.answer_root) return verifyAnswer();
       const I = b.inference, out = [], log = I.log_contract, aid = I.answer_id.toLowerCase();
       const chk = (check, ok, detail = "", t) => { out.push({ check, ok: !!ok, detail, tag: t || tag }); return !!ok; };
       tag = "record";
@@ -421,5 +527,5 @@
     return t;
   }
 
-  G.ArcVerify = { tamper, verifyBundle, cidV1Raw, canonical, modelMatch, servedModel, SEL, TOPIC, RPC_URL, EXPLORER, CHAIN_ID };
+  G.ArcVerify = { tamper, verifyBundle, answerLeafValues, answerRootOf, ANSWER_LEAVES, LEAF_TAG, cidV1Raw, canonical, modelMatch, servedModel, SEL, TOPIC, RPC_URL, EXPLORER, CHAIN_ID };
 })(globalThis);
