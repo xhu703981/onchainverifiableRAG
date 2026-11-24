@@ -38,10 +38,12 @@ def jcs(obj) -> bytes:
     """RFC 8785 JSON Canonicalization Scheme for the value types we use (str, int, bool, None, list, dict).
     Keys sorted by UTF-16 code units; no whitespace; strings escaped exactly like ECMAScript JSON.stringify
     (Python's json with ensure_ascii=False matches it: \\b\\f\\n\\r\\t\\"\\\\, other C0 controls as \\u00xx lowercase).
-    Floats are rejected (their JCS form needs the ECMAScript number printer)."""
+    Integral floats print as integers (as ECMAScript does); other floats are rejected."""
     def enc(v) -> str:
         if v is None or isinstance(v, bool):
             return json.dumps(v)
+        if isinstance(v, float) and v.is_integer():  # ECMAScript prints 1.0 as "1"
+            v = int(v)
         if isinstance(v, int):
             if abs(v) > 2**53 - 1:
                 raise ValueError("integer outside the IEEE-754 safe range")

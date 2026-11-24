@@ -37,7 +37,7 @@
 <body>
 <div class="wrap">
   <header class="top"><h1>Verifiable News</h1>
-    <p>Answers only from news paragraphs registered on Arc testnet. You check the source text yourself, in your browser.</p>
+    <p>Answers come only from news paragraphs registered on Arc testnet. Your browser checks the source text against the chain.</p>
     <p id="stat" style="font-family:var(--mono);font-size:12px"></p></header>
   <main class="main"><div class="chips" id="chips"></div><div id="thread"></div></main>
 </div>
@@ -71,20 +71,20 @@ function sentences(answer, ids) {
 function render(t, b) {
   const ids = (b.citations || []).map((c) => c.id), body = $(".body", t);
   const nf = b.answer === "Not found in registered news.";
-  body.innerHTML = `<p class="asof">As of <b>${fmt(b.as_of)}</b> · block time of the latest registered batch (proven not-after bound)</p>
+  body.innerHTML = `<p class="asof">As of <b>${fmt(b.as_of)}</b>, the block time of the latest registered batch</p>
     <p class="ans">${nf ? esc(b.answer) : sentences(b.answer || "", ids)}</p>
-    ${b.abstain ? `<p class="abst">Abstained before any model call: ${esc(b.abstain.reason === "post_cutoff" ? "the question is about events after the cutoff" : "no registered paragraph passed the relevance threshold")} (${esc(b.abstain.detail.split(";")[0])}).</p>` : ""}
+    ${b.abstain ? `<p class="abst">No model call was made. ${esc(b.abstain.reason === "post_cutoff" ? "The question asks about a date after the cutoff" : "No registered paragraph passed the relevance threshold")}: ${esc(b.abstain.detail.split(";")[0])}.</p>` : ""}
     <div class="srcs">${(b.citations || []).map((c) => { const m = c.article.meta; return `<div class="src" id="${t.id}-${c.id}">
-      <span class="lab">${c.id} · registered source text</span><h4>${esc(m.outlet)} — ${esc(m.title)}</h4>
+      <span class="lab">${c.id} · registered source text</span><h4>${esc(m.title)}</h4><div class="lab" style="color:var(--muted)">${esc(m.outlet)}</div>
       <blockquote>${esc(c.text)}</blockquote>
       <div class="kv"><span>url</span><a href="${esc(m.url)}" target="_blank" rel="noopener">${esc(m.url)}</a>
-      <span>published</span><span class="claim">${fmt(m.published_at)} — claimed by the feed</span>
-      <span>fetched</span><span class="claim">${fmt(m.fetched_at)} — claimed by our crawler (L0)</span>
-      <span>registered</span><span class="proven">${fmt(new Date(c.batch.block_time * 1000).toISOString().replace(".000Z", "Z"))} — block time, proven · <a href="${c.batch.explorer}" target="_blank" rel="noopener">tx ↗</a></span>
+      <span>published</span><span class="claim">${fmt(m.published_at)}, claimed by the feed</span>
+      <span>fetched</span><span class="claim">${fmt(m.fetched_at)}, claimed by our crawler at trust level L0</span>
+      <span>registered</span><span class="proven">${fmt(new Date(c.batch.block_time * 1000).toISOString().replace(".000Z", "Z"))}, block time, proven · <a href="${c.batch.explorer}" target="_blank" rel="noopener">tx ↗</a></span>
       <span>batch root</span><span>${c.batch.root.slice(0, 18)}…</span></div><ul class="checks" data-c="${c.id}"></ul></div>`; }).join("")}</div>
     <div class="vbar"><button class="v">Verify in my browser</button>${ids.length ? '<button class="ghost tamper">Try a tampered copy</button>' : ""}<span class="res"></span></div>
     <ul class="checks scope"></ul>
-    <p class="note">What this proves: each cited paragraph is the exact text of an article whose URL, outlet and times sit in a batch root registered on Arc by a key you trust, and the model saw exactly that text before answering. It does not prove the news is true, and because full articles are not redistributed, nobody can replay retrieval: an article that was left out is not detectable. The set of batches searched is fixed on-chain before the model call.</p>`;
+    <p class="note">Each cited paragraph is the exact text of an article whose URL, outlet and times are in a batch root that a key you trust registered on Arc. The model saw that text before it answered. This does not prove the news is true. Full articles are not redistributed, so nobody can replay retrieval, and an article that was left out cannot be detected. The list of batches searched is fixed on-chain before the model call.</p>`;
   body.querySelectorAll(".pid").forEach((x) => (x.onclick = () => document.getElementById(`${t.id}-${x.dataset.p}`).scrollIntoView({ behavior: "smooth", block: "center" })));
   $(".v", body).onclick = () => verify(body, b);
   const tb = $(".tamper", body); if (tb) tb.onclick = () => verify(body, NewsVerify.tamper(b, ["text", "url", "time"][Math.floor(Math.random() * 3)]));
@@ -94,11 +94,11 @@ async function verify(body, b) {
   const res = $(".res", body); res.className = "res"; res.textContent = "checking against Arc…";
   try {
     const r = await NewsVerify.verify(b, { onCall: (n) => (res.textContent = `checking against Arc… ${n} RPC calls`) });
-    const li = (x) => `<li class="${x.ok === null ? "skip" : x.ok ? "ok" : "bad"}">${esc(x.check)}${x.detail && x.ok !== true ? ` — ${esc(x.detail)}` : ""}</li>`;
+    const li = (x) => `<li class="${x.ok === null ? "skip" : x.ok ? "ok" : "bad"}">${esc(x.check)}${x.detail && x.ok !== true ? `. ${esc(x.detail)}` : ""}</li>`;
     r.citations.forEach((c) => { const ul = body.querySelector(`ul[data-c="${c.id}"]`); if (ul) ul.innerHTML = c.checks.map(li).join(""); });
     $(".scope", body).innerHTML = [...r.header, ...r.scope, ...r.model_call].map(li).join("");
     res.className = "res " + (r.all_pass ? "pass" : "fail");
-    res.textContent = (b._t ? `Tampered (${b._t}): ` : "") + (r.all_pass ? `All checks passed · ${r.rpc_calls} calls straight to Arc, none to us` : "Verification failed");
+    res.textContent = (b._t ? `Tampered (${b._t}): ` : "") + (r.all_pass ? `All checks passed. ${r.rpc_calls} calls went to the Arc RPC and none to our server.` : "Verification failed");
   } catch (e) { res.className = "res fail"; res.textContent = e.message; }
 }
 

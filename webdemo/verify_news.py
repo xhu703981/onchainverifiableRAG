@@ -26,6 +26,7 @@ Checks:
 """
 from __future__ import annotations
 
+import calendar
 import hashlib
 import json
 import time
@@ -60,6 +61,8 @@ def jcs(v) -> bytes:
     def enc(x):
         if x is None or isinstance(x, bool):
             return json.dumps(x)
+        if isinstance(x, float) and x.is_integer():  # ECMAScript prints 1.0 as "1", like the browser verifier
+            x = int(x)
         if isinstance(x, int):
             return str(x)
         if isinstance(x, str):
@@ -106,7 +109,7 @@ def scope_hash(roots: list[str]) -> str:
 
 
 def _ts(s: str) -> int:
-    return int(time.mktime(time.strptime(s, "%Y-%m-%dT%H:%M:%SZ")) - time.timezone) if s else 0
+    return calendar.timegm(time.strptime(s, "%Y-%m-%dT%H:%M:%SZ")) if s else 0
 
 
 def get_batch(rpc, registry: str, root: str) -> dict:

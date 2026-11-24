@@ -1,6 +1,7 @@
 """Offline tests: Merkle scheme (odd promotion, single leaf, side-bit proofs), JCS, URL normalization,
 and that the standalone verifier implements the same scheme."""
 import json
+from pathlib import Path
 import random
 
 import pytest
@@ -93,3 +94,39 @@ def test_selectors_match_contract():
     for sig, sel in V.vc.SEL.items():
         assert keccak(text=sig)[:4].hex() == sel, sig
     assert "0x" + keccak(text="BatchRegistered(bytes32,bytes32,address,uint32,uint256)").hex() == V.TOPIC_NEWS_BATCH
+
+
+def test_verifier_time_parse_is_utc_in_any_local_timezone(monkeypatch):
+    # interrogate finding: _ts used mktime - timezone, off by one hour while the local zone is on DST
+    import time as _t
+    monkeypatch.setenv("TZ", "America/New_York")
+    _t.tzset()
+    try:
+        assert V._ts("2026-07-01T12:00:00Z") == 1782907200
+        assert V._ts("2026-11-24T15:32:28Z") == 1795534348
+    finally:
+        monkeypatch.delenv("TZ")
+        _t.tzset()
+
+
+def test_jcs_integral_float_is_serialized_like_ecmascript():
+    # interrogate finding: JSON.parse turns 1.0 into 1, so the browser verifier hashed it as "1" while
+    # Python crashed. RFC 8785 serializes numbers the ECMAScript way, so 1.0 -> "1" in both.
+    assert S.jcs({"version": 1.0}) == V.jcs({"version": 1.0}) == b'{"version":1}'
+    with pytest.raises(TypeError):
+        S.jcs({"x": 0.5})
+    with pytest.raises(TypeError):
+        V.jcs({"x": 0.5})
+
+
+def test_bundle_carries_no_unverified_position_claims():
+    # interrogate finding: paragraph/article "index" fields were never checked against the proof, so drop them
+    b = json.loads((Path(__file__).resolve().parents[1] / "examples" / "bundle_genuine.json").read_text())
+    for c in b["citations"]:
+        assert "index" not in c["paragraph"] and "index" not in c["article"]
+
+
+def test_verifier_copies_are_identical():
+    root = Path(__file__).resolve().parents[2]
+    for f in ("verify_news.py", "verify_citations.py"):
+        assert (root / "webdemo" / f).read_bytes() == (root / "python" / f).read_bytes(), f

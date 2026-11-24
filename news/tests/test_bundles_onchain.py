@@ -73,7 +73,7 @@ def test_root_registered_by_untrusted_key_fails(rpc, genuine):
     b = copy.deepcopy(genuine)
     c = b["citations"][0]
     a = next(x for x in ub["articles"] if x["article_root"] == c["article"]["article_root"])
-    c["article"]["proof"], c["article"]["index"] = a["proof"], a["index"]
+    c["article"]["proof"] = a["proof"]
     c["batch"].update(root=ub["root"], manifest_hash=ub["manifest_hash"], tx=ub["tx"], block=ub["block"], block_time=ub["block_time"])
     res = V.verify_news(rpc, b, manifests=False)
     checks = {n: o for n, o, _ in res["citations"][0]["checks"]}

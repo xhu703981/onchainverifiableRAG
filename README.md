@@ -44,13 +44,10 @@ flowchart LR
 
 **Limitation.** The log proves which exact prompt and response existed and when, and that the cited sources are genuine. It does not prove that the provider actually ran the model on that prompt, and it does not verify the model's reasoning. The served model and provider are self-reported by the provider, not cryptographically proven. The replay proves the ranking follows from the committed corpus and retriever. It doesn't prove the corpus itself is complete or unbiased, and the trust filter is re-checked against the current allowlist.
 
-## Next: verifiable news (phase 1, [`news/`](news/README.md))
+## Verifiable news, phase 1
 
-The same idea on a live corpus: 20 English news feeds are crawled hourly, split into paragraphs and committed as Merkle roots in
-**NewsRegistry** on Arc testnet ([`0x124FcEfe59dAdbE5f6517E709b5C6A3988Ab6F64`](https://explorer.testnet.arc.io/address/0x124FcEfe59dAdbE5f6517E709b5C6A3988Ab6F64)),
-with manifests (metadata + roots, no text) on the [`news-manifests`](https://github.com/xhu703981/onchainverifiableRAG/tree/news-manifests/manifests) branch.
-Answers come only from paragraphs in trusted batches, every sentence cites one, and anyone can check that a cited paragraph is
-word for word from the article, URL and outlet it claims, registered by a key they trust, and seen by the model. It proves sources,
-not truth; and since full text can't be redistributed, an article left out of retrieval is not detectable.
+The [`news/`](news/README.md) folder applies the same idea to a live corpus. A crawler reads 20 English news feeds every hour and splits articles into paragraphs. Every 8 hours it registers a Merkle root of the new articles in NewsRegistry on Arc testnet at [`0x124FcEfe59dAdbE5f6517E709b5C6A3988Ab6F64`](https://explorer.testnet.arc.io/address/0x124FcEfe59dAdbE5f6517E709b5C6A3988Ab6F64). Each batch's manifest, with metadata and roots but no text, is on the [`news-manifests`](https://github.com/xhu703981/onchainverifiableRAG/tree/news-manifests/manifests) branch.
+
+Answers use only paragraphs from trusted batches, and every sentence cites one. Anyone can check that a cited paragraph is the exact text of the article, URL and outlet it names, that a key they trust registered it, and that the model saw it. This proves where the text came from, not that it is true. Full text cannot be redistributed, so an article left out of retrieval cannot be detected.
 
 ![news answer verified in the browser](webdemo/screens/news_verify.png)

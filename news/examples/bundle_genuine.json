@@ -25,7 +25,6 @@
    "text": "Shares of Anthropic fell 8% on Tuesday, sending the stock below the artificial intelligence company's $83 IPO price.",
    "content_hash": "0xb31460cfaff61631a84701423f0d09c2e298eadad585e1948d8338eada898013",
    "paragraph": {
-    "index": 0,
     "leaf": "0x302cba3866dd80f3067746bb4746265c56005d93d16443a92115b2b24de1e78c",
     "proof": [
      "R:0x2c5527c60f84870e00f74b34789ecaa8bba5fedff69e5d62798b35eaa0c303f3",
@@ -47,7 +46,6 @@
      "version": 1
     },
     "article_root": "0x72ea6ad9e2782a9f0c887bec223df1bbd8a6ebbff505fbcfd548ef0cbb9b9586",
-    "index": 61,
     "leaf": "0x85cf6e8559ade41d03d804f677d68140beec3ca29e84c1635bd2ff767dd36285",
     "proof": [
      "L:0x9a863626c1990c0ebb717dcf0cb643776f5d2e8a5886780140fb819a47c92b7c",
@@ -76,7 +74,6 @@
    "text": "The AI lab's stock has been sinking steadily since opening at $111.50 on the Nasdaq on Thursday, after Anthropic raised $81.3 billion in the largest offering of all time. Investors eagerly awaited Anthropic's debut in hopes that the company would revitalize the broader AI trade, which has been volatile in recent weeks over concerns about the feasibility of a multi-trillion-dollar infrastructure buildout.",
    "content_hash": "0x866d40bda254512bbe471013865fe8e36df56bd0a7b9282c5c3b26015cec0651",
    "paragraph": {
-    "index": 1,
     "leaf": "0x2c5527c60f84870e00f74b34789ecaa8bba5fedff69e5d62798b35eaa0c303f3",
     "proof": [
      "L:0x302cba3866dd80f3067746bb4746265c56005d93d16443a92115b2b24de1e78c",
@@ -98,7 +95,6 @@
      "version": 1
     },
     "article_root": "0x72ea6ad9e2782a9f0c887bec223df1bbd8a6ebbff505fbcfd548ef0cbb9b9586",
-    "index": 61,
     "leaf": "0x85cf6e8559ade41d03d804f677d68140beec3ca29e84c1635bd2ff767dd36285",
     "proof": [
      "L:0x9a863626c1990c0ebb717dcf0cb643776f5d2e8a5886780140fb819a47c92b7c",

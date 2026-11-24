@@ -178,8 +178,8 @@ class NewsEngine:
         a = db.execute("SELECT * FROM articles WHERE id=?", (doc["aid"],)).fetchone()
         b = batches[a["batch_id"]]
         return dict(id=pid, text=doc["text"], content_hash=doc["hash"],
-                    paragraph=dict(index=doc["idx"], leaf=doc["leaf"], proof=json.loads(doc["proof"])),
-                    article=dict(meta=json.loads(a["meta_json"]), article_root=a["article_root"], index=a["batch_index"],
+                    paragraph=dict(leaf=doc["leaf"], proof=json.loads(doc["proof"])),
+                    article=dict(meta=json.loads(a["meta_json"]), article_root=a["article_root"],
                                  leaf=a["article_leaf"], proof=json.loads(a["batch_proof"])),
                     batch=dict(root=b["root"], manifest_hash=b["manifest_hash"], manifest_uri=b["manifest_uri"],
                                article_count=b["article_count"], tx=b["tx"], block=b["block_number"], block_time=b["block_time"],
