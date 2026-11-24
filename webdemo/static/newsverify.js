@@ -12,6 +12,7 @@
   const hx = (u8) => "0x" + toHex(u8);
   const keccakHex = (s) => toHex(G.nobleHashes.keccak_256(enc.encode(s)));
   const SEL = {}; for (const s of ["getBatch(bytes32)", "isTrustedRoot(bytes32)", "registerBatch(bytes32,bytes32,uint32,string)"]) SEL[s] = keccakHex(s).slice(0, 8);
+  if (G.ArcVerify) Object.assign(G.ArcVerify.SEL, SEL);
   const TOPIC = "0x" + keccakHex("BatchRegistered(bytes32,bytes32,address,uint32,uint256)");
 
   // RFC 8785 for our value types: JS string sort = UTF-16 code units; JSON.stringify string escaping = JCS
@@ -39,13 +40,18 @@
   const iso = (t) => new Date(t * 1000).toISOString().replace(".000Z", "Z");
 
   async function verify(b, opts = {}) {
-    const rpcUrl = opts.rpc || b.rpc || "https://rpc.testnet.arc.io", calls = [];
+    const rpcUrl = opts.rpc || b.rpc || "https://rpc.testnet.arc.io", calls = [], evidence = {};
+    let tag = "net";
     async function rpc(method, params) {
+      const t0 = performance.now();
       for (let a = 0; ; a++) {
         const r = await fetch(rpcUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: calls.length + 1, method, params }) });
         const out = r.status === 429 ? { error: { code: -32005 } } : await r.json();
         if (out.error && out.error.code === -32005 && a < 6) { await new Promise((ok) => setTimeout(ok, 400 * 2 ** a)); continue; }
-        calls.push({ method, params }); if (opts.onCall) opts.onCall(calls.length);
+        const req = { jsonrpc: "2.0", id: calls.length + 1, method, params };
+        const item = { kind: "rpc", req, res: out, ms: Math.round(performance.now() - t0), cast: `cast rpc ${method} '${JSON.stringify(params)}' --raw --rpc-url ${rpcUrl}`,
+          href: /Transaction/.test(method) ? `https://explorer.testnet.arc.io/tx/${params[0]}` : method === "eth_call" ? `https://explorer.testnet.arc.io/address/${params[0].to}` : null };
+        calls.push(item); (evidence[tag] = evidence[tag] || []).push(item); if (opts.onCall) opts.onCall(calls.length);
         if (out.error) throw new Error(method + ": " + JSON.stringify(out.error));
         return out.result;
       }
@@ -66,7 +72,7 @@
     head.push({ check: "chain id is Arc testnet 5042002", ok: chain === 5042002 && b.chain_id === 5042002 });
     head.push({ check: "NewsRegistry has contract code", ok: !["0x", "0x0"].includes(await rpc("eth_getCode", [reg, "latest"])), detail: reg });
     head.push({ check: "Merkle scheme is news-merkle-v1", ok: N.scheme === SCHEME });
-    if (head.every((x) => x.ok)) for (const c of b.citations || []) {
+    if (head.every((x) => x.ok)) for (const [ci, c] of (b.citations || []).entries()) {
       const out = [], chk = (check, ok, detail = "") => out.push({ check, ok: ok === null ? null : !!ok, detail });
       const p = c.paragraph, a = c.article, bt = c.batch, meta = a.meta;
       const leaf = await sha(cat(Uint8Array.of(0), enc.encode(c.text)));
@@ -78,6 +84,7 @@
       chk("N2 meta has exactly the scheme's fields", keysOk);
       try { br = await applyProof(await articleLeaf(meta, ar), a.proof); } catch (e) { /* malformed */ }
       chk("N2 article leaf (URL, outlet, title, times) → batch root", keysOk && hx(br) === bt.root.toLowerCase());
+      tag = "bat:" + ci;
       const root = hx(br).length === 66 ? hx(br) : bt.root.toLowerCase(), on = await batch(root);
       chk("N3 batch root registered on NewsRegistry", on.exists, root);
       if (on.exists) {
@@ -107,6 +114,7 @@
       if (opts.outlets) chk("U1 outlet is one of your chosen sources", opts.outlets.includes(meta.outlet), meta.outlet);
       cites.push({ id: c.id, status: out.every((x) => x.ok !== false) ? "PASS" : "FAIL", checks: out, registered_at: on.exists ? on.timestamp : null });
     }
+    tag = "scope";
     const roots = ((N.scope || {}).roots || []).map((r) => r.toLowerCase()), sc = (check, ok, detail = "") => scope.push({ check, ok: !!ok, detail });
     if (head.every((x) => x.ok)) {
       sc("S1 scope hash = sha256(sorted batch roots)", roots.length && (await scopeHash(roots)) === (N.scope.scope_hash || "").toLowerCase(), `${roots.length} batch roots`);
@@ -124,13 +132,16 @@
     let model = { model_call: [] };
     if (b.inference && head.every((x) => x.ok)) model = await G.ArcVerify.verifyBundle({ ...b, contract: b.inference.log_contract }, { modelOnly: true, rpc: rpcUrl, onCall: opts.onCall });
     const flat = [...head, ...scope, ...cites.flatMap((c) => c.checks), ...model.model_call];
-    return { all_pass: flat.every((x) => x.ok !== false), header: head, citations: cites, scope, model_call: model.model_call, rpc_calls: calls.length + (model.rpc_calls || 0) };
+    const ev = { ...(model.evidence || {}) }; for (const k in evidence) ev[k] = (ev[k] || []).concat(evidence[k]);
+    return { all_pass: flat.every((x) => x.ok !== false), header: head, citations: cites, scope, model_call: model.model_call, model: model.model || null,
+             rpc: rpcUrl, evidence: ev, rpc_calls: calls.length + (model.rpc_calls || 0) };
   }
 
   function tamper(b, mode) {
     const t = JSON.parse(JSON.stringify(b)), c = t.citations[0];
     if (mode === "text") { const i = Math.floor(c.text.length / 2); c.text = c.text.slice(0, i) + (c.text[i] === "x" ? "y" : "x") + c.text.slice(i + 1); t._t = `one character of ${c.id}`; }
     else if (mode === "url") { c.article.meta.url = "https://example.com/not-the-real-article"; t._t = `the URL of ${c.id}`; }
+    else if (mode === "answer") { t.answer = t.answer + " (edited)"; t._t = "the answer"; }
     else if (mode === "time") { c.article.meta.published_at = "2020-01-01T00:00:00Z"; t._t = `the publish time of ${c.id}`; }
     return t;
   }

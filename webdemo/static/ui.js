@@ -61,7 +61,7 @@
     return (rs && rs[0]) || "source check failed"; }
   const allOk = (a) => a.every((x) => x.ok);
   const firstBad = (a) => (a.find((x) => !x.ok) || {}).check || "";
-  const strip = (s) => s.replace(/^[MC]\d /, "");
+  const strip = (s) => s.replace(/^[MCNSU]\d /, "");
   function build(b, v) {
     const mc = v ? v.model_call : [], tagged = (t) => mc.filter((x) => x.tag === t), inf = b.inference;
     const rec = tagged("record"), recOk = allOk(rec);
@@ -94,6 +94,42 @@
       cols.push([{ k: "a", lbl: "Answer", sub: "block " + inf.finalize_block, tags: ["answer"], rec: 1, checks: ac, ok: nodeOk(ac),
         why: "answer: " + (ac.some((x) => /^M4 bundle answer/.test(x.check) && !x.ok) ? "differs from the response logged on-chain" : ac.some((x) => /^M4 sha256/.test(x.check) && !x.ok) ? "response bytes don't match the on-chain hash" : strip(firstBad(ac))) }]);
     }
+    return cols;
+  }
+
+  // ---------- news bundles: paragraph -> article -> batch -> prompt -> model -> answer ----------
+  function buildNews(b, v) {
+    const mc = v ? v.model_call : [], tagged = (t) => mc.filter((x) => x.tag === t), inf = b.inference, cites = b.citations || [];
+    const rec = tagged("record"), recOk = allOk(rec);
+    const okc = (cs) => (v ? cs.length > 0 && cs.every((x) => x.ok !== false) : true);
+    const grp = (i, re) => ((v && v.citations[i]) ? v.citations[i].checks : []).filter((x) => re.test(x.check));
+    const bad = (cs, re) => cs.some((x) => re.test(x.check) && x.ok === false);
+    const head = v ? v.header : [], cols = []; // chain id, registry code and scheme sit on the batch nodes: they are facts about the registry
+    if (cites.length) {
+      cols.push(cites.map((c, i) => { const cs = grp(i, /^N1/);
+        return { k: "s" + i, lbl: disp(c.id), sub: "paragraph", tags: ["src:" + i], checks: cs, ok: okc(cs), src: true,
+          why: `${c.id}: the text was changed, so its hash no longer reaches the article root` }; }));
+      cols.push(cites.map((c, i) => { const cs = grp(i, /^(N2|N5|U1)/);
+        return { k: "r" + i, lbl: c.article.meta.outlet, sub: "article", tags: ["art:" + i], checks: cs, ok: okc(cs),
+          why: `${c.id}: ` + (bad(cs, /^U1/) ? "this outlet is not one of your chosen sources" : bad(cs, /^N5/) ? "the claimed fetch time is after the registration"
+            : "the URL, outlet, title or times differ from the registered article") }; }));
+      cols.push(cites.map((c, i) => { const cs = head.concat(grp(i, /^(N3|N4|N6)/));
+        return { k: "b" + i, lbl: "Batch", sub: c.batch.root.slice(0, 10) + "…", tags: ["net", "bat:" + i], checks: cs, ok: okc(cs),
+          why: !allOk(head) ? "registry: " + firstBad(head) : `${c.id}: ` + (bad(cs, /^N3 batch root registered/) ? "this batch root is not registered on NewsRegistry" : bad(cs, /^N3 registrant/) ? "the batch was registered by a key that is not trusted"
+            : bad(cs, /^N4/) ? "the registration transaction does not match" : bad(cs, /^N6/) ? "the published manifest does not match the chain" : strip(firstBad(cs))) }; }));
+    } else cols.push([{ k: "s", lbl: "Sources", sub: "none cited", tags: ["net"], checks: head, ok: v ? allOk(head) : true, why: "registry: " + firstBad(head) }]);
+    const sc = v ? v.scope : [];
+    if (inf) {
+      const nodeOk = (cs) => (v ? cs.length > 0 && cs.every((x) => x.ok !== false) && recOk : true);
+      const pc = rec.concat(tagged("prompt"), ...cites.map((c, i) => tagged("src:" + i)), sc), mcK = tagged("model"), ac = tagged("answer"), md = v && v.model;
+      cols.push([{ k: "p", lbl: "Prompt", sub: "block " + inf.commit_block, tags: ["record", "prompt", "scope"], checks: pc, ok: nodeOk(pc),
+        why: !recOk ? "log record: " + strip(firstBad(rec)) : pc.some((x) => /^M3 cited/.test(x.check) && !x.ok) ? "prompt: a cited paragraph was not in the prompt committed on-chain"
+          : pc.some((x) => /^M2 sha256/.test(x.check) && !x.ok) ? "prompt: bytes differ from the hash committed on-chain" : "prompt: " + strip(firstBad(pc)) }]);
+      cols.push([{ k: "m", lbl: bare(inf.model), wide: 1, sub: md ? `served by ${md.provider || "unknown"}` : "requested", tags: ["model"], rec: 1, checks: mcK, ok: nodeOk(mcK),
+        why: "model: " + (md && !md.match ? `requested ${bare(md.requested)}, served ${bare(md.served)}` : "response bytes don't match the on-chain hash") }]);
+      cols.push([{ k: "a", lbl: "Answer", sub: "block " + inf.finalize_block, tags: ["answer"], rec: 1, checks: ac, ok: nodeOk(ac),
+        why: "answer: " + (ac.some((x) => /^M4 bundle answer/.test(x.check) && !x.ok) ? "differs from the response logged on-chain" : strip(firstBad(ac))) }]);
+    } else cols.push([{ k: "p", lbl: "Scope", sub: "batches searched", tags: ["scope"], checks: sc, ok: okc(sc), why: "scope: " + strip(firstBad(sc)) }]);
     return cols;
   }
 
@@ -160,20 +196,22 @@
 
   // ---------- verify (in the browser) ----------
   function nodeHTML(n) { return `<div class="node wait${n.wide ? " wide" : ""}" data-k="${n.k}" role="button" tabindex="0" title="Show on-chain evidence">${LINK()}<div class="lbl">${esc(n.lbl)}</div><div class="sub">${esc(n.sub)}</div></div>`; }
-  async function verify(body, b, tampered) {
+  // opt.verifyFn / opt.build: the news page passes NewsVerify.verify and buildNews; the diagram code is shared
+  async function verify(body, b, tampered, opt = {}) {
+    const vfn = opt.verifyFn || ((x, o) => A().verifyBundle(x, o)), bld = opt.build || build;
     body.querySelector(".ptx").innerHTML = "";
-    const vf = body.querySelector(".vf"), cols0 = build(b, null);
+    const vf = body.querySelector(".vf"), cols0 = bld(b, null);
     vf.innerHTML = `<div class="flow">${cols0.map((c, i) => (i ? `<div class="link" data-l="${i}"></div>` : "") + `<div class="col${c.length > 1 ? " multi" : ""}" data-c="${i}">${c.map(nodeHTML).join("")}</div>`).join("")}</div>
       <div class="why"></div><div class="how"></div><div class="hint"></div><div class="det"></div>`;
     vf.querySelector(".det").style.display = "none";
     const t0 = performance.now(); let v;
     const how = vf.querySelector(".how");
-    try { v = await A().verifyBundle(b, { onStatus: (m) => (how.textContent = b.retrieval ? `Replaying retrieval: ${m} from the committed URI…` : "") }); }
+    try { v = await vfn(b, { onStatus: (m) => (how.textContent = b.retrieval ? `Replaying retrieval: ${m} from the committed URI…` : "") }); }
     catch (e) { vf.querySelector(".why").textContent = "could not reach the Arc RPC from your browser: " + e.message;
       vf.querySelector(".how").textContent = "verify offline-of-us instead: python verify_citations.py bundle.json  (or the cast commands in the README)"; return; }
     const mine = location.origin && location.origin !== "null"
       ? performance.getEntriesByType("resource").filter((e) => e.startTime >= t0 && new URL(e.name).origin === location.origin).length : 0;
-    const cols = build(b, v), byk = Object.fromEntries(cols.flat().map((n) => [n.k, n])), det = vf.querySelector(".det");
+    const cols = bld(b, v), byk = Object.fromEntries(cols.flat().map((n) => [n.k, n])), det = vf.querySelector(".det");
     vf.querySelectorAll(".node").forEach((el) => (el.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); el.click(); } }));
     vf.querySelectorAll(".node").forEach((el) => (el.onclick = () => {
       const same = det.dataset.k === el.dataset.k && det.style.display !== "none";
@@ -224,5 +262,5 @@
     return inp;
   }
 
-  G.VUI = { newTurn, render, verify, loadBundle, initFileInput, esc };
+  G.VUI = { newTurn, render, verify, buildNews, loadBundle, initFileInput, esc };
 })(globalThis);

@@ -46,6 +46,7 @@
 <script src="/static/noble-hashes.min.js"></script>
 <script src="/static/arcverify.js"></script>
 <script src="/static/newsverify.js"></script>
+<script src="/static/ui.js"></script>
 <script>
 const $ = (s, r = document) => r.querySelector(s), esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const EXP = "https://explorer.testnet.arc.io";
@@ -85,20 +86,22 @@ function render(t, b) {
       <span>registered</span><span class="proven">${fmt(new Date(c.batch.block_time * 1000).toISOString().replace(".000Z", "Z"))}, block time, proven · <a href="${c.batch.explorer}" target="_blank" rel="noopener">tx ↗</a></span>
       <span>batch root</span><span>${c.batch.root.slice(0, 18)}…</span></div><ul class="checks" data-c="${c.id}"></ul></div>`; }).join("")}</div>
     <div class="vbar"><button class="v">Verify in my browser</button>${ids.length ? '<button class="ghost tamper">Try a tampered copy</button>' : ""}<span class="res"></span></div>
-    <ul class="checks scope"></ul>
+    <div class="ptx"></div><div class="vf"></div>
     <p class="note">Each cited paragraph is the exact text of an article whose URL, outlet and times are in a batch root that a key you trust registered on Arc. The model saw that text before it answered. This does not prove the news is true. Full articles are not redistributed, so nobody can replay retrieval, and an article that was left out cannot be detected. The list of batches searched is fixed on-chain before the model call.</p>`;
   body.querySelectorAll(".pid").forEach((x) => (x.onclick = () => document.getElementById(`${t.id}-${x.dataset.p}`).scrollIntoView({ behavior: "smooth", block: "center" })));
   $(".v", body).onclick = () => verify(body, b);
-  const tb = $(".tamper", body); if (tb) tb.onclick = () => verify(body, NewsVerify.tamper(b, ["text", "url", "time"][Math.floor(Math.random() * 3)]));
+  const tb = $(".tamper", body); if (tb) tb.onclick = () => verify(body, NewsVerify.tamper(b, ["text", "url", "time", "answer"][Math.floor(Math.random() * 4)]));
 }
 
 async function verify(body, b) {
   const res = $(".res", body); res.className = "res"; res.textContent = "checking against Arc…";
   try {
-    const r = await NewsVerify.verify(b, { onCall: (n) => (res.textContent = `checking against Arc… ${n} RPC calls`) });
+    // chain-of-custody diagram: the shared ui.js code, with news nodes (paragraph → article → batch → prompt → model → answer)
+    const r = await VUI.verify(body, b, !!b._t, { build: VUI.buildNews,
+      verifyFn: (x, o) => NewsVerify.verify(x, { ...o, onCall: (n) => (res.textContent = `checking against Arc… ${n} RPC calls`) }) });
+    if (!r) throw new Error("could not reach the Arc RPC from your browser");
     const li = (x) => `<li class="${x.ok === null ? "skip" : x.ok ? "ok" : "bad"}">${esc(disp(x.check))}${x.detail && x.ok !== true ? `. ${esc(x.detail)}` : ""}</li>`;
     r.citations.forEach((c) => { const ul = body.querySelector(`ul[data-c="${c.id}"]`); if (ul) ul.innerHTML = c.checks.map(li).join(""); });
-    $(".scope", body).innerHTML = [...r.header, ...r.scope, ...r.model_call].map(li).join("");
     res.className = "res " + (r.all_pass ? "pass" : "fail");
     res.textContent = (b._t ? `Tampered (${disp(b._t)}): ` : "") + (r.all_pass ? `All checks passed. ${r.rpc_calls} calls went to the Arc RPC and none to our server.` : "Verification failed");
   } catch (e) { res.className = "res fail"; res.textContent = e.message; }
